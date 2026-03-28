@@ -1724,6 +1724,43 @@ function nextWord() {
     return;
   }
 
+  // Check if current direction is completed for selected category
+  if (selectedCategories.size > 0 && (quizMode === 'de-en' || quizMode === 'en-de')) {
+    const dir = quizMode === 'de-en' ? 'deEn' : 'enDe';
+    const otherDir = quizMode === 'de-en' ? 'enDe' : 'deEn';
+    const otherLabel = quizMode === 'de-en' ? 'EN → DE' : 'DE → EN';
+    const allDone = pool.every(w => {
+      const s = getWordStat(w);
+      return (s[dir]?.correct || 0) >= MASTERY_THRESHOLD;
+    });
+    if (allDone) {
+      // Check if other direction also done
+      const otherDone = pool.every(w => {
+        const s = getWordStat(w);
+        return (s[otherDir]?.correct || 0) >= MASTERY_THRESHOLD;
+      });
+      const catName = [...selectedCategories][0];
+      const feedback = document.getElementById('quiz-feedback');
+      if (otherDone) {
+        // Both directions complete for this category
+        document.getElementById('quiz-word').textContent = 'Category Complete!';
+        document.getElementById('quiz-category').textContent = catName;
+        feedback.className = 'quiz-feedback feedback-correct';
+        feedback.innerHTML = `You've mastered all ${pool.length} words in <strong>${catName}</strong> in both directions! Pick a new category from the dropdown.`;
+        document.getElementById('quiz-input').disabled = true;
+        return;
+      } else {
+        // This direction done, suggest switching
+        document.getElementById('quiz-word').textContent = 'Direction Complete!';
+        document.getElementById('quiz-category').textContent = catName;
+        feedback.className = 'quiz-feedback feedback-correct';
+        feedback.innerHTML = `All ${pool.length} words in <strong>${catName}</strong> done in this direction! <br><button class="quiz-btn btn-primary" style="margin-top:8px;padding:10px" onclick="setQuizMode('${quizMode === 'de-en' ? 'en-de' : 'de-en'}')">Switch to ${otherLabel}</button>`;
+        document.getElementById('quiz-input').disabled = true;
+        return;
+      }
+    }
+  }
+
   // Smart selection: 50% struggles, 30% unseen, 20% review
   // Bucket words into categories, respecting cooldowns
   const struggles = []; // wrong 2+ times
@@ -1926,8 +1963,10 @@ function skipWord() {
 
 function setQuizMode(mode) {
   quizMode = mode;
-  document.querySelectorAll('.mode-toggle button').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
+  const modeMap = {'mixed':0, 'de-en':1, 'en-de':2, 'struggles':3};
+  document.querySelectorAll('.mode-toggle button').forEach((b, i) => {
+    b.classList.toggle('active', i === modeMap[mode]);
+  });
   nextWord();
 }
 
