@@ -143,22 +143,48 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
       const data = row.data;
       const wordStats = data.wordStats || {};
       let mastered = 0, struggles = 0, weak = 0;
+      const deEnStats = { mastered: 0, struggles: 0, weak: 0, unseen: 0 };
+      const enDeStats = { mastered: 0, struggles: 0, weak: 0, unseen: 0 };
       const totalTracked = Object.keys(wordStats).length;
+
       for (const key of Object.keys(wordStats)) {
         const s = wordStats[key];
-        // Match frontend isWordMastered logic: directional if available, else overall
         const deEnC = s.deEn?.correct || 0;
         const enDeC = s.enDe?.correct || 0;
-        const hasDirectional = deEnC > 0 || enDeC > 0;
-        const isMastered = hasDirectional
-          ? (deEnC >= 3 && enDeC >= 3)
-          : (s.correct >= 3);
-        // Struggles take priority - if wrong 2+ times, still needs work
+        const deEnW = s.deEn?.wrong || 0;
+        const enDeW = s.enDe?.wrong || 0;
+        const hasDirectional = deEnC > 0 || enDeC > 0 || deEnW > 0 || enDeW > 0;
+
+        // Per-direction stats
+        if (hasDirectional) {
+          if (deEnW >= 2) deEnStats.struggles++;
+          else if (deEnC >= 3) deEnStats.mastered++;
+          else if (deEnC + deEnW > 0) deEnStats.weak++;
+          else deEnStats.unseen++;
+
+          if (enDeW >= 2) enDeStats.struggles++;
+          else if (enDeC >= 3) enDeStats.mastered++;
+          else if (enDeC + enDeW > 0) enDeStats.weak++;
+          else enDeStats.unseen++;
+        } else {
+          // Backward compat: no directional data, count same for both
+          const m = s.correct >= 3;
+          const st = s.wrong >= 2;
+          if (st) { deEnStats.struggles++; enDeStats.struggles++; }
+          else if (m) { deEnStats.mastered++; enDeStats.mastered++; }
+          else if ((s.correct + s.wrong) > 0) { deEnStats.weak++; enDeStats.weak++; }
+          else { deEnStats.unseen++; enDeStats.unseen++; }
+        }
+
+        // Combined stats
+        const isMastered = hasDirectional ? (deEnC >= 3 && enDeC >= 3) : (s.correct >= 3);
         if (s.wrong >= 2) struggles++;
         else if (isMastered) mastered++;
         else if ((s.correct + s.wrong) > 0) weak++;
       }
       const unseen = TOTAL_WORDS - totalTracked;
+      deEnStats.unseen += unseen;
+      enDeStats.unseen += unseen;
       const totalCorrect = data.totalCorrect || 0;
       const totalWrong = data.totalWrong || 0;
       const totalAttempted = totalCorrect + totalWrong;
@@ -193,10 +219,18 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
       const avgPerDay = activeDays > 0 ? Math.round(totalNewMastered / activeDays) : 0;
       const onTrack = avgPerDay >= wordsPerDay;
 
+      // Per-direction run rates
+      const deEnNeeded = Math.max(0, TARGET_WORDS - deEnStats.mastered);
+      const enDeNeeded = Math.max(0, TARGET_WORDS - enDeStats.mastered);
+      const deEnPerDay = daysLeft > 0 ? Math.ceil(deEnNeeded / daysLeft) : deEnNeeded;
+      const enDePerDay = daysLeft > 0 ? Math.ceil(enDeNeeded / daysLeft) : enDeNeeded;
+
       return {
         name: row.sync_code,
         lastActive: row.updated_at,
         mastered, struggles, weak, unseen,
+        deEn: { ...deEnStats, wordsPerDay: deEnPerDay, masteryPct: Math.round(deEnStats.mastered / TOTAL_WORDS * 100) },
+        enDe: { ...enDeStats, wordsPerDay: enDePerDay, masteryPct: Math.round(enDeStats.mastered / TOTAL_WORDS * 100) },
         totalAttempted, accuracy,
         bestStreak: data.bestStreak || 0,
         todayCorrect: todayScore.correct,

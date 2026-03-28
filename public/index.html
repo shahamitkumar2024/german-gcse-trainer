@@ -202,16 +202,32 @@
 
 <!-- QUIZ PAGE -->
 <div id="page-quiz" class="container">
-  <div class="card" id="daily-target-card" style="background:linear-gradient(135deg,#1a73e8,#6c5ce7);color:white;text-align:center;padding:16px">
-    <div style="display:flex;justify-content:space-around;align-items:center">
-      <div><div style="font-size:2rem;font-weight:800" id="target-words-per-day">—</div><div style="font-size:0.75rem;opacity:0.9">words/day needed</div></div>
-      <div><div style="font-size:2rem;font-weight:800" id="target-days-left">35</div><div style="font-size:0.75rem;opacity:0.9">days left</div></div>
-      <div><div style="font-size:2rem;font-weight:800" id="target-mastered">0</div><div style="font-size:0.75rem;opacity:0.9">of <span id="target-needed">956</span> needed</div></div>
+  <div class="card" id="daily-target-card" style="background:linear-gradient(135deg,#1a73e8,#6c5ce7);color:white;padding:12px 16px">
+    <div style="text-align:center;margin-bottom:10px">
+      <span style="font-size:2rem;font-weight:800" id="target-days-left">35</span>
+      <span style="font-size:0.85rem;opacity:0.9"> days left</span>
     </div>
-    <div style="background:rgba(255,255,255,0.2);border-radius:6px;height:8px;margin-top:12px;overflow:hidden">
-      <div id="target-progress-bar" style="background:white;height:100%;width:0%;border-radius:6px;transition:width 0.5s"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:10px;text-align:center">
+        <div style="font-size:0.75rem;opacity:0.8;margin-bottom:4px">DE → EN</div>
+        <div style="font-size:1.6rem;font-weight:800" id="target-deen-mastered">0</div>
+        <div style="font-size:0.65rem;opacity:0.7">of <span id="target-needed">956</span> mastered</div>
+        <div style="background:rgba(255,255,255,0.2);border-radius:4px;height:6px;margin:6px 0;overflow:hidden">
+          <div id="target-deen-bar" style="background:white;height:100%;width:0%;border-radius:4px"></div>
+        </div>
+        <div style="font-size:0.85rem;font-weight:700" id="target-deen-rate">—/day</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:10px;text-align:center">
+        <div style="font-size:0.75rem;opacity:0.8;margin-bottom:4px">EN → DE</div>
+        <div style="font-size:1.6rem;font-weight:800" id="target-ende-mastered">0</div>
+        <div style="font-size:0.65rem;opacity:0.7">of <span id="target-needed2">956</span> mastered</div>
+        <div style="background:rgba(255,255,255,0.2);border-radius:4px;height:6px;margin:6px 0;overflow:hidden">
+          <div id="target-ende-bar" style="background:white;height:100%;width:0%;border-radius:4px"></div>
+        </div>
+        <div style="font-size:0.85rem;font-weight:700" id="target-ende-rate">—/day</div>
+      </div>
     </div>
-    <div style="font-size:0.75rem;opacity:0.8;margin-top:6px" id="target-message">Master 98% of words in 35 days</div>
+    <div style="font-size:0.7rem;opacity:0.7;margin-top:8px;text-align:center" id="target-message">Master 98% in each direction</div>
   </div>
 
   <div class="score-bar">
@@ -254,18 +270,37 @@
   </div>
 
   <div class="stats-grid">
-    <div class="stat-card"><div class="stat-num" id="stat-total-answered">0</div><div class="stat-label">Total Answered</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-total-answered">0</div><div class="stat-label">Total Answers</div></div>
     <div class="stat-card"><div class="stat-num" id="stat-accuracy">0%</div><div class="stat-label">Accuracy</div></div>
-    <div class="stat-card"><div class="stat-num" id="stat-words-mastered">0</div><div class="stat-label">Words Mastered</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-words-mastered">0</div><div class="stat-label">Both Mastered</div></div>
     <div class="stat-card"><div class="stat-num" id="stat-best-streak">0</div><div class="stat-label">Best Streak</div></div>
   </div>
 
   <div class="card">
-    <h3>Words Mastered</h3>
-    <div class="progress-bar"><div class="progress-fill green" id="mastered-bar" style="width:0%"></div></div>
-    <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:var(--muted)">
-      <span id="mastered-count">0 mastered</span>
-      <span id="mastered-total">of 0 words</span>
+    <h3>Mastery by Direction</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <div style="font-size:0.85rem;font-weight:600;color:var(--primary);margin-bottom:6px">DE → EN</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.8rem;margin-bottom:8px">
+          <div style="background:#e6f4ea;padding:6px;border-radius:6px;text-align:center"><strong id="prog-deen-mastered" style="color:var(--success)">0</strong><div style="font-size:0.65rem;color:var(--muted)">Mastered</div></div>
+          <div style="background:#fce8e6;padding:6px;border-radius:6px;text-align:center"><strong id="prog-deen-struggles" style="color:var(--danger)">0</strong><div style="font-size:0.65rem;color:var(--muted)">Struggles</div></div>
+          <div style="background:#fef7e0;padding:6px;border-radius:6px;text-align:center"><strong id="prog-deen-weak" style="color:var(--warning)">0</strong><div style="font-size:0.65rem;color:var(--muted)">Weak</div></div>
+          <div style="background:#e8f0fe;padding:6px;border-radius:6px;text-align:center"><strong id="prog-deen-unseen" style="color:var(--primary)">0</strong><div style="font-size:0.65rem;color:var(--muted)">Unseen</div></div>
+        </div>
+        <div class="progress-bar"><div class="progress-fill green" id="prog-deen-bar" style="width:0%"></div></div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:2px"><span id="prog-deen-rate">—</span> words/day needed</div>
+      </div>
+      <div>
+        <div style="font-size:0.85rem;font-weight:600;color:var(--primary);margin-bottom:6px">EN → DE</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.8rem;margin-bottom:8px">
+          <div style="background:#e6f4ea;padding:6px;border-radius:6px;text-align:center"><strong id="prog-ende-mastered" style="color:var(--success)">0</strong><div style="font-size:0.65rem;color:var(--muted)">Mastered</div></div>
+          <div style="background:#fce8e6;padding:6px;border-radius:6px;text-align:center"><strong id="prog-ende-struggles" style="color:var(--danger)">0</strong><div style="font-size:0.65rem;color:var(--muted)">Struggles</div></div>
+          <div style="background:#fef7e0;padding:6px;border-radius:6px;text-align:center"><strong id="prog-ende-weak" style="color:var(--warning)">0</strong><div style="font-size:0.65rem;color:var(--muted)">Weak</div></div>
+          <div style="background:#e8f0fe;padding:6px;border-radius:6px;text-align:center"><strong id="prog-ende-unseen" style="color:var(--primary)">0</strong><div style="font-size:0.65rem;color:var(--muted)">Unseen</div></div>
+        </div>
+        <div class="progress-bar"><div class="progress-fill green" id="prog-ende-bar" style="width:0%"></div></div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:2px"><span id="prog-ende-rate">—</span> words/day needed</div>
+      </div>
     </div>
   </div>
 
@@ -1709,11 +1744,37 @@ function isWordMastered(word) {
   const s = getWordStat(word);
   const hasDirectional = s.deEn.correct > 0 || s.enDe.correct > 0;
   if (hasDirectional) {
-    // New: must be correct 3+ in both directions
     return s.deEn.correct >= MASTERY_THRESHOLD && s.enDe.correct >= MASTERY_THRESHOLD;
   }
-  // Backward compat: old data without directional tracking
   return s.correct >= MASTERY_THRESHOLD;
+}
+
+function getDirectionStats() {
+  const deEn = { mastered: 0, struggles: 0, weak: 0, unseen: 0 };
+  const enDe = { mastered: 0, struggles: 0, weak: 0, unseen: 0 };
+  for (const w of VOCAB) {
+    const s = getWordStat(w);
+    const hasDir = s.deEn.correct > 0 || s.enDe.correct > 0 || s.deEn.wrong > 0 || s.enDe.wrong > 0;
+    if (hasDir) {
+      if (s.deEn.wrong >= 2) deEn.struggles++;
+      else if (s.deEn.correct >= MASTERY_THRESHOLD) deEn.mastered++;
+      else if (s.deEn.correct + s.deEn.wrong > 0) deEn.weak++;
+      else deEn.unseen++;
+      if (s.enDe.wrong >= 2) enDe.struggles++;
+      else if (s.enDe.correct >= MASTERY_THRESHOLD) enDe.mastered++;
+      else if (s.enDe.correct + s.enDe.wrong > 0) enDe.weak++;
+      else enDe.unseen++;
+    } else if (s.correct + s.wrong > 0) {
+      const m = s.correct >= MASTERY_THRESHOLD;
+      const st = s.wrong >= 2;
+      if (st) { deEn.struggles++; enDe.struggles++; }
+      else if (m) { deEn.mastered++; enDe.mastered++; }
+      else { deEn.weak++; enDe.weak++; }
+    } else {
+      deEn.unseen++; enDe.unseen++;
+    }
+  }
+  return { deEn, enDe };
 }
 
 function getTodayKey() {
@@ -2087,25 +2148,32 @@ function updateDailyTarget() {
   const daysLeft = Math.max(0, Math.ceil((EXAM_DATE - now) / (1000 * 60 * 60 * 24)));
   const effectiveDays = Math.min(daysLeft, TOTAL_STUDY_DAYS);
 
-  let mastered = 0;
-  VOCAB.forEach(w => { if (isWordMastered(w)) mastered++; });
+  const ds = getDirectionStats();
 
-  const wordsNeeded = Math.max(0, TARGET_WORDS - mastered);
-  const wordsPerDay = effectiveDays > 0 ? Math.ceil(wordsNeeded / effectiveDays) : wordsNeeded;
-  const progressPct = Math.min(100, Math.round(mastered / TARGET_WORDS * 100));
+  const deEnNeeded = Math.max(0, TARGET_WORDS - ds.deEn.mastered);
+  const enDeNeeded = Math.max(0, TARGET_WORDS - ds.enDe.mastered);
+  const deEnRate = effectiveDays > 0 ? Math.ceil(deEnNeeded / effectiveDays) : deEnNeeded;
+  const enDeRate = effectiveDays > 0 ? Math.ceil(enDeNeeded / effectiveDays) : enDeNeeded;
+  const deEnPct = Math.min(100, Math.round(ds.deEn.mastered / TARGET_WORDS * 100));
+  const enDePct = Math.min(100, Math.round(ds.enDe.mastered / TARGET_WORDS * 100));
 
-  document.getElementById('target-words-per-day').textContent = wordsPerDay;
   document.getElementById('target-days-left').textContent = effectiveDays;
-  document.getElementById('target-mastered').textContent = mastered;
+  document.getElementById('target-deen-mastered').textContent = ds.deEn.mastered;
+  document.getElementById('target-ende-mastered').textContent = ds.enDe.mastered;
   document.getElementById('target-needed').textContent = TARGET_WORDS;
-  document.getElementById('target-progress-bar').style.width = progressPct + '%';
+  document.getElementById('target-needed2').textContent = TARGET_WORDS;
+  document.getElementById('target-deen-bar').style.width = deEnPct + '%';
+  document.getElementById('target-ende-bar').style.width = enDePct + '%';
+  document.getElementById('target-deen-rate').textContent = deEnRate + '/day';
+  document.getElementById('target-ende-rate').textContent = enDeRate + '/day';
 
+  const maxRate = Math.max(deEnRate, enDeRate);
   let msg;
-  if (mastered >= TARGET_WORDS) {
-    msg = 'Target reached! Keep revising to stay sharp!';
-  } else if (wordsPerDay <= 20) {
+  if (ds.deEn.mastered >= TARGET_WORDS && ds.enDe.mastered >= TARGET_WORDS) {
+    msg = 'Both directions mastered! Keep revising!';
+  } else if (maxRate <= 20) {
     msg = 'On track! Keep it up!';
-  } else if (wordsPerDay <= 40) {
+  } else if (maxRate <= 40) {
     msg = 'Need to pick up pace. Practice daily!';
   } else {
     msg = 'Behind schedule. Intensive practice needed!';
@@ -2129,16 +2197,31 @@ function updateProgress() {
   document.getElementById('stat-accuracy').textContent = acc + '%';
   document.getElementById('stat-best-streak').textContent = state.bestStreak;
 
-  // Mastered words
+  // Per-direction stats
+  const ds = getDirectionStats();
   let mastered = 0;
-  VOCAB.forEach(w => {
-    if (isWordMastered(w)) mastered++;
-  });
+  VOCAB.forEach(w => { if (isWordMastered(w)) mastered++; });
   document.getElementById('stat-words-mastered').textContent = mastered;
-  document.getElementById('mastered-count').textContent = mastered + ' mastered';
-  document.getElementById('mastered-total').textContent = 'of ' + VOCAB.length + ' words';
-  const pct = Math.round(mastered / VOCAB.length * 100);
-  document.getElementById('mastered-bar').style.width = pct + '%';
+
+  // DE→EN
+  document.getElementById('prog-deen-mastered').textContent = ds.deEn.mastered;
+  document.getElementById('prog-deen-struggles').textContent = ds.deEn.struggles;
+  document.getElementById('prog-deen-weak').textContent = ds.deEn.weak;
+  document.getElementById('prog-deen-unseen').textContent = ds.deEn.unseen;
+  const deEnPct = Math.round(ds.deEn.mastered / VOCAB.length * 100);
+  document.getElementById('prog-deen-bar').style.width = deEnPct + '%';
+  const deEnRate = diff > 0 ? Math.ceil(Math.max(0, TARGET_WORDS - ds.deEn.mastered) / diff) : 0;
+  document.getElementById('prog-deen-rate').textContent = deEnRate;
+
+  // EN→DE
+  document.getElementById('prog-ende-mastered').textContent = ds.enDe.mastered;
+  document.getElementById('prog-ende-struggles').textContent = ds.enDe.struggles;
+  document.getElementById('prog-ende-weak').textContent = ds.enDe.weak;
+  document.getElementById('prog-ende-unseen').textContent = ds.enDe.unseen;
+  const enDePct = Math.round(ds.enDe.mastered / VOCAB.length * 100);
+  document.getElementById('prog-ende-bar').style.width = enDePct + '%';
+  const enDeRate = diff > 0 ? Math.ceil(Math.max(0, TARGET_WORDS - ds.enDe.mastered) / diff) : 0;
+  document.getElementById('prog-ende-rate').textContent = enDeRate;
 
   // Category breakdown
   const catDiv = document.getElementById('category-breakdown');
@@ -2546,22 +2629,26 @@ async function loadAdminDashboard() {
           <span>Target: ${result.targetWords} (98%)</span>
         </div>
 
-        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
-          <div class="stat-card" style="padding:10px;cursor:pointer" onclick="showAdminDetail('${u.name}','mastered')">
-            <div class="stat-num" style="font-size:1.3rem;color:var(--success)">${u.mastered}</div>
-            <div class="stat-label" style="text-decoration:underline">Mastered</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div style="background:#f8f9fa;border-radius:10px;padding:10px">
+            <div style="font-size:0.75rem;font-weight:600;color:var(--primary);margin-bottom:6px">DE → EN</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:0.75rem">
+              <div style="background:#e6f4ea;padding:4px 6px;border-radius:4px;text-align:center;cursor:pointer" onclick="showAdminDetail('${u.name}','mastered','deEn')"><strong style="color:var(--success)">${u.deEn.mastered}</strong> <span style="color:var(--muted)">Mast</span></div>
+              <div style="background:#fce8e6;padding:4px 6px;border-radius:4px;text-align:center;cursor:pointer" onclick="showAdminDetail('${u.name}','struggles','deEn')"><strong style="color:var(--danger)">${u.deEn.struggles}</strong> <span style="color:var(--muted)">Strug</span></div>
+              <div style="background:#fef7e0;padding:4px 6px;border-radius:4px;text-align:center;cursor:pointer" onclick="showAdminDetail('${u.name}','weak','deEn')"><strong style="color:var(--warning)">${u.deEn.weak}</strong> <span style="color:var(--muted)">Weak</span></div>
+              <div style="background:#e8f0fe;padding:4px 6px;border-radius:4px;text-align:center;cursor:pointer" onclick="showAdminDetail('${u.name}','unseen','deEn')"><strong style="color:var(--primary)">${u.deEn.unseen}</strong> <span style="color:var(--muted)">Uns</span></div>
+            </div>
+            <div style="font-size:0.7rem;color:var(--muted);margin-top:4px">${u.deEn.masteryPct}% mastered · ${u.deEn.wordsPerDay}/day needed</div>
           </div>
-          <div class="stat-card" style="padding:10px;cursor:pointer" onclick="showAdminDetail('${u.name}','struggles')">
-            <div class="stat-num" style="font-size:1.3rem;color:var(--danger)">${u.struggles}</div>
-            <div class="stat-label" style="text-decoration:underline">Struggles</div>
-          </div>
-          <div class="stat-card" style="padding:10px;cursor:pointer" onclick="showAdminDetail('${u.name}','weak')">
-            <div class="stat-num" style="font-size:1.3rem;color:var(--warning)">${u.weak}</div>
-            <div class="stat-label" style="text-decoration:underline">Weak</div>
-          </div>
-          <div class="stat-card" style="padding:10px;cursor:pointer" onclick="showAdminDetail('${u.name}','unseen')">
-            <div class="stat-num" style="font-size:1.3rem;color:var(--primary)">${u.unseen}</div>
-            <div class="stat-label" style="text-decoration:underline">Unseen</div>
+          <div style="background:#f8f9fa;border-radius:10px;padding:10px">
+            <div style="font-size:0.75rem;font-weight:600;color:var(--primary);margin-bottom:6px">EN → DE</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:0.75rem">
+              <div style="background:#e6f4ea;padding:4px 6px;border-radius:4px;text-align:center;cursor:pointer" onclick="showAdminDetail('${u.name}','mastered','enDe')"><strong style="color:var(--success)">${u.enDe.mastered}</strong> <span style="color:var(--muted)">Mast</span></div>
+              <div style="background:#fce8e6;padding:4px 6px;border-radius:4px;text-align:center;cursor:pointer" onclick="showAdminDetail('${u.name}','struggles','enDe')"><strong style="color:var(--danger)">${u.enDe.struggles}</strong> <span style="color:var(--muted)">Strug</span></div>
+              <div style="background:#fef7e0;padding:4px 6px;border-radius:4px;text-align:center;cursor:pointer" onclick="showAdminDetail('${u.name}','weak','enDe')"><strong style="color:var(--warning)">${u.enDe.weak}</strong> <span style="color:var(--muted)">Weak</span></div>
+              <div style="background:#e8f0fe;padding:4px 6px;border-radius:4px;text-align:center;cursor:pointer" onclick="showAdminDetail('${u.name}','unseen','enDe')"><strong style="color:var(--primary)">${u.enDe.unseen}</strong> <span style="color:var(--muted)">Uns</span></div>
+            </div>
+            <div style="font-size:0.7rem;color:var(--muted);margin-top:4px">${u.enDe.masteryPct}% mastered · ${u.enDe.wordsPerDay}/day needed</div>
           </div>
         </div>
 
@@ -2619,7 +2706,7 @@ async function loadAdminDashboard() {
 // ============================================================
 let adminDetailData = []; // store for filtering
 
-async function showAdminDetail(userName, filter) {
+async function showAdminDetail(userName, filter, direction) {
   if (!adminToken) return;
   try {
     const resp = await fetch(`${API_BASE}/api/admin/users/${userName}/words`, { headers: { 'x-admin-token': adminToken } });
@@ -2634,31 +2721,43 @@ async function showAdminDetail(userName, filter) {
       mastered: 'var(--success)', struggles: 'var(--danger)',
       weak: 'var(--warning)', unseen: 'var(--primary)', all: 'var(--text)'
     };
+    const dirLabel = direction === 'deEn' ? ' (DE→EN)' : direction === 'enDe' ? ' (EN→DE)' : '';
 
     document.getElementById('admin-detail-title').innerHTML =
-      `<span style="color:${colors[filter]}">${titles[filter]}</span> — ${userName.charAt(0).toUpperCase() + userName.slice(1)}`;
+      `<span style="color:${colors[filter]}">${titles[filter]}${dirLabel}</span> — ${userName.charAt(0).toUpperCase() + userName.slice(1)}`;
 
-    // Build word list based on filter
+    // Build word list based on filter and direction
     const allWords = [];
     const trackedKeys = new Set(Object.keys(result.words));
 
-    // Add tracked words
     for (const [key, w] of Object.entries(result.words)) {
       const deEnC = w.deEn?.correct || 0;
       const enDeC = w.enDe?.correct || 0;
-      const hasDirectional = deEnC > 0 || enDeC > 0;
-      // Backward compat: if no directional data yet, use overall correct >= 3 as "mastered"
-      const deEnMastered = hasDirectional ? deEnC >= MASTERY_THRESHOLD : w.correct >= MASTERY_THRESHOLD;
-      const enDeMastered = hasDirectional ? enDeC >= MASTERY_THRESHOLD : w.correct >= MASTERY_THRESHOLD;
-      const isMastered = deEnMastered && enDeMastered;
-      const isStruggle = w.wrong >= 2;
+      const deEnW = w.deEn?.wrong || 0;
+      const enDeW = w.enDe?.wrong || 0;
+      const hasDirectional = deEnC > 0 || enDeC > 0 || deEnW > 0 || enDeW > 0;
 
-      // Struggles take priority - wrong 2+ times means still needs work
-      let category = isStruggle ? 'struggles' : isMastered ? 'mastered' : 'weak';
+      // Determine category based on direction filter
+      let category;
+      if (direction && hasDirectional) {
+        const dirC = direction === 'deEn' ? deEnC : enDeC;
+        const dirW = direction === 'deEn' ? deEnW : enDeW;
+        if (dirW >= 2) category = 'struggles';
+        else if (dirC >= MASTERY_THRESHOLD) category = 'mastered';
+        else if (dirC + dirW > 0) category = 'weak';
+        else category = 'unseen';
+      } else {
+        // Combined / no direction
+        const deEnMast = hasDirectional ? deEnC >= MASTERY_THRESHOLD : w.correct >= MASTERY_THRESHOLD;
+        const enDeMast = hasDirectional ? enDeC >= MASTERY_THRESHOLD : w.correct >= MASTERY_THRESHOLD;
+        const isMastered = deEnMast && enDeMast;
+        const isStruggle = w.wrong >= 2;
+        category = isStruggle ? 'struggles' : isMastered ? 'mastered' : 'weak';
+      }
+
       if (filter !== 'all' && filter !== 'unseen' && filter !== category) continue;
-      if (filter === 'unseen') continue; // unseen handled below
+      if (filter === 'unseen' && category !== 'unseen') continue;
 
-      // Show overall correct if no directional data yet
       const displayDeEn = hasDirectional ? deEnC : w.correct;
       const displayEnDe = hasDirectional ? enDeC : w.correct;
 
