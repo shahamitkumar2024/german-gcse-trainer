@@ -1641,7 +1641,13 @@ function getWordStat(word) {
 // A word is mastered only when correct 3+ times in BOTH directions
 function isWordMastered(word) {
   const s = getWordStat(word);
-  return s.deEn.correct >= MASTERY_THRESHOLD && s.enDe.correct >= MASTERY_THRESHOLD;
+  const hasDirectional = s.deEn.correct > 0 || s.enDe.correct > 0;
+  if (hasDirectional) {
+    // New: must be correct 3+ in both directions
+    return s.deEn.correct >= MASTERY_THRESHOLD && s.enDe.correct >= MASTERY_THRESHOLD;
+  }
+  // Backward compat: old data without directional tracking
+  return s.correct >= MASTERY_THRESHOLD;
 }
 
 function getTodayKey() {
