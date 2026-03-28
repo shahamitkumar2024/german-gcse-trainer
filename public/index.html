@@ -2156,8 +2156,7 @@ function updateProgress() {
   }).join('');
 
   // Daily chart with mastered words per day and run rate
-  const now = new Date();
-  const daysLeftNow = Math.min(TOTAL_STUDY_DAYS, Math.max(0, Math.ceil((EXAM_DATE - now) / (1000*60*60*24))));
+  const daysLeftNow = diff;
   const wordsStillNeeded = Math.max(0, TARGET_WORDS - mastered);
   const requiredRunRate = daysLeftNow > 0 ? Math.ceil(wordsStillNeeded / daysLeftNow) : wordsStillNeeded;
 
