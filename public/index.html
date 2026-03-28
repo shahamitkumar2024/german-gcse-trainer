@@ -2652,9 +2652,9 @@ async function showAdminDetail(userName, filter) {
       const enDeMastered = hasDirectional ? enDeC >= MASTERY_THRESHOLD : w.correct >= MASTERY_THRESHOLD;
       const isMastered = deEnMastered && enDeMastered;
       const isStruggle = w.wrong >= 2;
-      const isWeak = !isMastered && !isStruggle && (w.correct + w.wrong) > 0;
 
-      let category = isMastered ? 'mastered' : isStruggle ? 'struggles' : 'weak';
+      // Struggles take priority - wrong 2+ times means still needs work
+      let category = isStruggle ? 'struggles' : isMastered ? 'mastered' : 'weak';
       if (filter !== 'all' && filter !== 'unseen' && filter !== category) continue;
       if (filter === 'unseen') continue; // unseen handled below
 

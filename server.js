@@ -153,8 +153,9 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
         const isMastered = hasDirectional
           ? (deEnC >= 3 && enDeC >= 3)
           : (s.correct >= 3);
-        if (isMastered) mastered++;
-        else if (s.wrong >= 2) struggles++;
+        // Struggles take priority - if wrong 2+ times, still needs work
+        if (s.wrong >= 2) struggles++;
+        else if (isMastered) mastered++;
         else if ((s.correct + s.wrong) > 0) weak++;
       }
       const unseen = TOTAL_WORDS - totalTracked;
