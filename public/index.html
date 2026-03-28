@@ -19,13 +19,14 @@
     --border: #dadce0;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { overflow-x: hidden; width: 100%; }
   body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
   /* Navigation */
-  .nav { background: var(--primary); color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-  .nav h1 { font-size: 1.2rem; font-weight: 600; }
-  .nav-links { display: flex; gap: 4px; }
-  .nav-links button { background: rgba(255,255,255,0.15); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: background 0.2s; }
+  .nav { background: var(--primary); color: white; padding: 10px 12px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); gap: 6px; }
+  .nav h1 { font-size: 1.1rem; font-weight: 600; white-space: nowrap; }
+  .nav-links { display: flex; gap: 3px; flex-wrap: wrap; }
+  .nav-links button { background: rgba(255,255,255,0.15); color: white; border: none; padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; transition: background 0.2s; }
   .nav-links button:hover, .nav-links button.active { background: rgba(255,255,255,0.3); }
 
   /* Container */
@@ -126,10 +127,21 @@
 
   /* Responsive */
   @media (max-width: 480px) {
-    .nav h1 { font-size: 1rem; }
-    .nav-links button { padding: 6px 10px; font-size: 0.75rem; }
-    .quiz-word { font-size: 1.5rem; padding: 20px 10px; }
+    .nav { padding: 8px 10px; }
+    .nav h1 { font-size: 0.9rem; }
+    .nav h1 .sync-badge { display: none; }
+    .nav-links { gap: 2px; }
+    .nav-links button { padding: 5px 7px; font-size: 0.7rem; }
+    .user-badge { font-size: 0.65rem; padding: 3px 6px; }
+    .container { padding: 12px; }
+    .card { padding: 16px; }
+    .quiz-word { font-size: 1.4rem; padding: 16px 8px; }
     .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .category-filters { gap: 4px; }
+    .cat-btn { padding: 4px 8px; font-size: 0.7rem; }
+    .score-bar { padding: 8px; }
+    .score-item .num { font-size: 1.2rem; }
+    .countdown .days-left { font-size: 2.2rem; }
   }
 
   .reset-btn { background: var(--danger); color: white; border: none; padding: 12px 24px; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 600; margin-top: 12px; }
