@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>German GCSE Vocabulary Trainer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root {
     --primary: #1a73e8;
@@ -264,7 +266,10 @@
   <div class="card">
     <h2>Struggle Words</h2>
     <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px">Words you've got wrong 2+ times. Practice these!</p>
-    <button class="practice-btn" onclick="practiceStruggles()" style="margin-bottom:16px">Practice Struggle Words</button>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="practice-btn" onclick="practiceStruggles()">Practice Struggle Words</button>
+      <button class="practice-btn" onclick="generateRevisionPDF()" style="background:#1a73e8;color:white">Download Revision PDF</button>
+    </div>
     <ul class="struggle-list" id="struggle-list"></ul>
     <p id="no-struggles" class="hidden" style="text-align:center;color:var(--muted);padding:30px">No struggle words yet. Keep practising!</p>
   </div>
@@ -1897,6 +1902,95 @@ function updateProgress() {
 // ============================================================
 // STRUGGLES PAGE
 // ============================================================
+function generateRevisionPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  // Categorize words
+  const struggles = [];
+  const unseen = [];
+  const weak = [];
+
+  for (const w of VOCAB) {
+    const s = getWordStat(w);
+    const attempts = s.correct + s.wrong;
+    if (s.wrong >= 2) struggles.push({ ...w, stat: s });
+    else if (attempts === 0) unseen.push({ ...w, stat: s });
+    else if (s.correct < MASTERY_THRESHOLD) weak.push({ ...w, stat: s });
+  }
+
+  struggles.sort((a, b) => b.stat.wrong - a.stat.wrong);
+  weak.sort((a, b) => a.stat.correct - b.stat.correct);
+
+  const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const totalMastered = VOCAB.filter(w => getWordStat(w).correct >= MASTERY_THRESHOLD).length;
+
+  // Title
+  doc.setFontSize(20);
+  doc.setTextColor(26, 115, 232);
+  doc.text('German GCSE - Revision List', 14, 20);
+
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text(`Generated: ${today}  |  Words mastered: ${totalMastered}/${VOCAB.length}  |  Struggles: ${struggles.length}  |  Unseen: ${unseen.length}`, 14, 28);
+
+  let yPos = 36;
+
+  // Helper to add a section with a table
+  function addSection(title, words, color, showStat) {
+    if (words.length === 0) return;
+
+    // Check if we need a new page
+    if (yPos > 260) { doc.addPage(); yPos = 20; }
+
+    doc.setFontSize(14);
+    doc.setTextColor(color[0], color[1], color[2]);
+    doc.text(title + ` (${words.length})`, 14, yPos);
+    yPos += 2;
+
+    const rows = words.map(w => {
+      const row = [w.de, w.en, w.cat];
+      if (showStat) row.push(w.stat.wrong + ' wrong, ' + w.stat.correct + ' correct');
+      return row;
+    });
+
+    const columns = [
+      { header: 'German', dataKey: 'de' },
+      { header: 'English', dataKey: 'en' },
+      { header: 'Category', dataKey: 'cat' },
+    ];
+    if (showStat) columns.push({ header: 'Stats', dataKey: 'stats' });
+
+    doc.autoTable({
+      startY: yPos,
+      head: [columns.map(c => c.header)],
+      body: rows,
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: color, textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      margin: { left: 14, right: 14 },
+      didDrawPage: function(data) { yPos = data.cursor.y; }
+    });
+
+    yPos = doc.lastAutoTable.finalY + 10;
+  }
+
+  addSection('Struggle Words - Focus on these!', struggles, [234, 67, 53], true);
+  addSection('Weak Words - Need more practice', weak, [251, 188, 4], true);
+  addSection('Unseen Words - Not yet attempted', unseen, [26, 115, 232], false);
+
+  // Footer on last page
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text(`German GCSE Revision List - Page ${i} of ${pageCount}`, 14, 290);
+  }
+
+  doc.save(`german-gcse-revision-${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
 function updateStruggles() {
   const list = document.getElementById('struggle-list');
   const struggles = VOCAB.filter(w => {
