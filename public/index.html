@@ -257,19 +257,9 @@
   </div>
 
   <div class="card">
-    <h3>Daily Activity (last 35 days)</h3>
-    <div class="heatmap" id="heatmap"></div>
-    <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--muted);margin-top:6px">
-      <span>Less</span>
-      <div style="display:flex;gap:3px">
-        <div style="width:12px;height:12px;background:#eee;border-radius:2px"></div>
-        <div style="width:12px;height:12px;background:#c6e48b;border-radius:2px"></div>
-        <div style="width:12px;height:12px;background:#7bc96f;border-radius:2px"></div>
-        <div style="width:12px;height:12px;background:#239a3b;border-radius:2px"></div>
-        <div style="width:12px;height:12px;background:#196127;border-radius:2px"></div>
-      </div>
-      <span>More</span>
-    </div>
+    <h3>Daily Progress &amp; Run Rate</h3>
+    <div id="run-rate-info" style="background:#f1f3f4;border-radius:10px;padding:12px;margin-bottom:12px;font-size:0.85rem"></div>
+    <div id="daily-chart" style="overflow-x:auto"></div>
   </div>
 
   <div class="card">
@@ -2089,23 +2079,77 @@ function updateProgress() {
     </div>`;
   }).join('');
 
-  // Heatmap (last 35 days)
-  const heatmap = document.getElementById('heatmap');
-  let days = [];
+  // Daily chart with mastered words per day and run rate
+  const now = new Date();
+  const daysLeftNow = Math.min(TOTAL_STUDY_DAYS, Math.max(0, Math.ceil((EXAM_DATE - now) / (1000*60*60*24))));
+  const wordsStillNeeded = Math.max(0, TARGET_WORDS - mastered);
+  const requiredRunRate = daysLeftNow > 0 ? Math.ceil(wordsStillNeeded / daysLeftNow) : wordsStillNeeded;
+
+  // Count new words mastered each day (approximate from daily correct answers)
+  let dailyData = [];
+  let cumulativeMastered = 0;
   for (let i = TOTAL_STUDY_DAYS - 1; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const key = d.toISOString().slice(0,10);
-    const score = state.dailyScores[key];
-    const count = score ? score.correct + score.wrong : 0;
-    let level = 0;
-    if (count > 0) level = 1;
-    if (count >= 10) level = 2;
-    if (count >= 30) level = 3;
-    if (count >= 50) level = 4;
-    days.push(`<div class="heatmap-day level-${level}" title="${key}: ${count} answers"></div>`);
+    const score = state.dailyScores[key] || {correct:0, wrong:0};
+    // Estimate new words mastered that day: correct answers that push past threshold
+    // Using correct count as proxy for new mastery progress
+    const newMastered = Math.round(score.correct / MASTERY_THRESHOLD); // rough estimate
+    cumulativeMastered += newMastered;
+    const dayName = d.toLocaleDateString('en-GB', {weekday:'short'}).slice(0,2);
+    const dayNum = d.getDate();
+    dailyData.push({ key, dayName, dayNum, correct: score.correct, wrong: score.wrong, newMastered, cumulative: cumulativeMastered });
   }
-  heatmap.innerHTML = days.join('');
+
+  // Run rate info
+  const avgPerDay = dailyData.filter(d => d.correct > 0).length > 0
+    ? Math.round(dailyData.reduce((s,d) => s + d.newMastered, 0) / Math.max(1, dailyData.filter(d => d.correct > 0).length))
+    : 0;
+  const onTrack = avgPerDay >= requiredRunRate;
+
+  document.getElementById('run-rate-info').innerHTML = `
+    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div>
+        <span style="font-weight:700;color:${onTrack ? 'var(--success)' : 'var(--danger)'}">Required: ${requiredRunRate} words/day</span>
+        <span style="color:var(--muted)"> to master ${TARGET_WORDS} words in ${daysLeftNow} days</span>
+      </div>
+      <div>
+        <span style="font-weight:700">Current avg: ${avgPerDay} words/day</span>
+        <span style="margin-left:8px;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;${onTrack ? 'background:#e6f4ea;color:var(--success)' : 'background:#fce8e6;color:var(--danger)'}">${onTrack ? 'ON TRACK' : 'BEHIND'}</span>
+      </div>
+    </div>
+    <div style="margin-top:6px;font-size:0.8rem;color:var(--muted)">
+      ${mastered} mastered &middot; ${wordsStillNeeded} remaining &middot; ${daysLeftNow} days left
+    </div>
+  `;
+
+  // Bar chart
+  const maxBar = Math.max(1, ...dailyData.map(d => d.correct + d.wrong));
+  const chartContainer = document.getElementById('daily-chart');
+  chartContainer.innerHTML = `
+    <div style="display:flex;gap:2px;align-items:flex-end;height:100px;padding-bottom:4px">
+      ${dailyData.map(d => {
+        const total = d.correct + d.wrong;
+        const h = Math.max(2, Math.round(total / maxBar * 80));
+        const correctH = total > 0 ? Math.round(d.correct / total * h) : 0;
+        const wrongH = h - correctH;
+        const isToday = d.key === getTodayKey();
+        const border = isToday ? 'border:2px solid var(--primary);border-radius:4px;padding:1px;' : '';
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;min-width:18px;${border}">
+          <div style="font-size:0.55rem;color:var(--muted);margin-bottom:2px">${total > 0 ? d.newMastered : ''}</div>
+          <div style="width:100%;height:${wrongH}px;background:var(--danger);border-radius:2px 2px 0 0;min-width:8px;max-width:24px;margin:0 auto"></div>
+          <div style="width:100%;height:${correctH}px;background:var(--success);border-radius:0 0 2px 2px;min-width:8px;max-width:24px;margin:0 auto"></div>
+          <div style="font-size:0.55rem;color:var(--muted);margin-top:2px">${d.dayNum}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;justify-content:center;gap:16px;margin-top:6px;font-size:0.7rem">
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--success);border-radius:2px;display:inline-block"></span> Correct</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--danger);border-radius:2px;display:inline-block"></span> Wrong</span>
+      <span style="display:flex;align-items:center;gap:4px">Top number = new words mastered</span>
+    </div>
+  `;
 
   // Today's score
   const daily = getDailyScore();
