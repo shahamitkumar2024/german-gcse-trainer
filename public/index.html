@@ -2567,12 +2567,12 @@ async function loadAdminDashboard() {
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;font-size:0.85rem">
           <div style="padding:10px 12px;background:#f1f3f4;border-radius:8px">
-            <div style="color:var(--muted);font-size:0.7rem">Today's Activity</div>
-            <div><strong style="color:var(--success)">${u.todayCorrect}</strong> correct &middot; <strong style="color:var(--danger)">${u.todayWrong}</strong> wrong</div>
+            <div style="color:var(--muted);font-size:0.7rem">Today's Answers</div>
+            <div><strong style="color:var(--success)">${u.todayCorrect}</strong> right &middot; <strong style="color:var(--danger)">${u.todayWrong}</strong> wrong &middot; ${u.todayCorrect + u.todayWrong} total</div>
           </div>
           <div style="padding:10px 12px;background:#f1f3f4;border-radius:8px">
-            <div style="color:var(--muted);font-size:0.7rem">All Time</div>
-            <div><strong>${u.totalAttempted}</strong> attempts &middot; <strong>${u.accuracy}%</strong> accuracy</div>
+            <div style="color:var(--muted);font-size:0.7rem">All Time Answers</div>
+            <div><strong>${u.totalAttempted}</strong> answers &middot; <strong>${u.accuracy}%</strong> accuracy</div>
           </div>
           <div style="padding:10px 12px;background:#f1f3f4;border-radius:8px">
             <div style="color:var(--muted);font-size:0.7rem">Best Streak</div>

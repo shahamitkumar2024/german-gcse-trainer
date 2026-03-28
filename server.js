@@ -146,9 +146,16 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
       const totalTracked = Object.keys(wordStats).length;
       for (const key of Object.keys(wordStats)) {
         const s = wordStats[key];
-        if (s.correct >= 3) mastered++;
+        // Match frontend isWordMastered logic: directional if available, else overall
+        const deEnC = s.deEn?.correct || 0;
+        const enDeC = s.enDe?.correct || 0;
+        const hasDirectional = deEnC > 0 || enDeC > 0;
+        const isMastered = hasDirectional
+          ? (deEnC >= 3 && enDeC >= 3)
+          : (s.correct >= 3);
+        if (isMastered) mastered++;
         else if (s.wrong >= 2) struggles++;
-        else weak++;
+        else if ((s.correct + s.wrong) > 0) weak++;
       }
       const unseen = TOTAL_WORDS - totalTracked;
       const totalCorrect = data.totalCorrect || 0;
