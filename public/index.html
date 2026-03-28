@@ -171,6 +171,7 @@
     <button onclick="showPage('progress')">Progress</button>
     <button onclick="showPage('struggles')">Struggles</button>
     <button onclick="showPage('words')">Words</button>
+    <button onclick="showPage('admin')" style="background:rgba(255,255,255,0.08)">Admin</button>
   </div>
 </div>
 
@@ -297,6 +298,33 @@
         <thead><tr><th>German</th><th>English</th><th>Category</th></tr></thead>
         <tbody id="word-table-body"></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN PAGE -->
+<div id="page-admin" class="container hidden">
+  <!-- Admin Login -->
+  <div class="card" id="admin-login-card">
+    <h2>Admin Login</h2>
+    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px">Enter your credentials to view all users' progress</p>
+    <input type="email" class="quiz-input" id="admin-email" placeholder="Email address" style="margin-bottom:10px" autocomplete="email">
+    <input type="password" class="quiz-input" id="admin-password" placeholder="Password" style="margin-bottom:10px">
+    <button class="quiz-btn btn-primary" onclick="adminLogin()">Login</button>
+    <p id="admin-login-error" class="hidden" style="color:var(--danger);text-align:center;margin-top:10px;font-size:0.9rem"></p>
+  </div>
+
+  <!-- Admin Dashboard (hidden until login) -->
+  <div id="admin-dashboard" class="hidden">
+    <div class="countdown" id="admin-countdown">
+      <div class="days-left" id="admin-days-left">35</div>
+      <div class="days-label">days to master 98% of words</div>
+    </div>
+
+    <div id="admin-users-container"></div>
+
+    <div style="text-align:center;margin-top:16px">
+      <button class="reset-btn" style="background:var(--muted)" onclick="adminLogout()">Logout</button>
     </div>
   </div>
 </div>
@@ -2148,7 +2176,7 @@ function filterWords() {
 // NAVIGATION
 // ============================================================
 function showPage(page) {
-  ['quiz','progress','struggles','words'].forEach(p => {
+  ['quiz','progress','struggles','words','admin'].forEach(p => {
     document.getElementById('page-' + p).classList.toggle('hidden', p !== page);
   });
   document.querySelectorAll('.nav-links button').forEach(b => b.classList.remove('active'));
@@ -2157,6 +2185,164 @@ function showPage(page) {
   if (page === 'progress') updateProgress();
   if (page === 'struggles') updateStruggles();
   if (page === 'words') populateWords();
+  if (page === 'admin' && adminToken) loadAdminDashboard();
+}
+
+// ============================================================
+// ADMIN
+// ============================================================
+let adminToken = localStorage.getItem('german-gcse-admin-token') || '';
+
+async function adminLogin() {
+  const email = sanitizeInput(document.getElementById('admin-email').value);
+  const password = document.getElementById('admin-password').value; // don't sanitize password
+  const errorEl = document.getElementById('admin-login-error');
+  errorEl.classList.add('hidden');
+
+  if (!email || !password) {
+    errorEl.textContent = 'Please enter email and password';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await resp.json();
+    if (resp.ok && data.token) {
+      adminToken = data.token;
+      localStorage.setItem('german-gcse-admin-token', adminToken);
+      document.getElementById('admin-login-card').classList.add('hidden');
+      document.getElementById('admin-dashboard').classList.remove('hidden');
+      loadAdminDashboard();
+    } else {
+      errorEl.textContent = data.error || 'Invalid credentials';
+      errorEl.classList.remove('hidden');
+    }
+  } catch (e) {
+    errorEl.textContent = 'Connection error. Try again.';
+    errorEl.classList.remove('hidden');
+  }
+}
+
+function adminLogout() {
+  adminToken = '';
+  localStorage.removeItem('german-gcse-admin-token');
+  document.getElementById('admin-login-card').classList.remove('hidden');
+  document.getElementById('admin-dashboard').classList.add('hidden');
+  document.getElementById('admin-email').value = '';
+  document.getElementById('admin-password').value = '';
+}
+
+// Check if admin token is still valid on page load
+async function checkAdminToken() {
+  if (!adminToken) return;
+  try {
+    const resp = await fetch(`${API_BASE}/api/admin/users`, { headers: { 'x-admin-token': adminToken } });
+    if (resp.ok) {
+      document.getElementById('admin-login-card').classList.add('hidden');
+      document.getElementById('admin-dashboard').classList.remove('hidden');
+    } else {
+      adminLogout();
+    }
+  } catch { adminLogout(); }
+}
+
+async function loadAdminDashboard() {
+  if (!adminToken) return;
+  try {
+    const resp = await fetch(`${API_BASE}/api/admin/users`, { headers: { 'x-admin-token': adminToken } });
+    if (!resp.ok) { adminLogout(); return; }
+    const result = await resp.json();
+
+    document.getElementById('admin-days-left').textContent = result.daysLeft;
+
+    const container = document.getElementById('admin-users-container');
+    if (result.users.length === 0) {
+      container.innerHTML = '<div class="card" style="text-align:center;color:var(--muted);padding:40px">No users yet</div>';
+      return;
+    }
+
+    container.innerHTML = result.users.map(u => {
+      const progressColor = u.masteryPct >= 80 ? 'var(--success)' : u.masteryPct >= 50 ? 'var(--warning)' : 'var(--danger)';
+      const lastActive = new Date(u.lastActive).toLocaleDateString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+
+      // Daily history mini chart
+      const maxDay = Math.max(1, ...u.dailyHistory.map(d => d.correct + d.wrong));
+      const miniChart = u.dailyHistory.map(d => {
+        const total = d.correct + d.wrong;
+        const h = Math.max(2, Math.round(total / maxDay * 40));
+        const correctH = total > 0 ? Math.round(d.correct / total * h) : 0;
+        const wrongH = h - correctH;
+        const dayLabel = d.date.slice(8);
+        return `<div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+          <div style="width:20px;height:${wrongH}px;background:var(--danger);border-radius:2px 2px 0 0"></div>
+          <div style="width:20px;height:${correctH}px;background:var(--success);border-radius:0 0 2px 2px"></div>
+          <div style="font-size:0.6rem;color:var(--muted)">${dayLabel}</div>
+        </div>`;
+      }).join('');
+
+      // Top struggles
+      const strugglesList = u.topStruggles.length > 0
+        ? u.topStruggles.map(s => `<span style="display:inline-block;background:#fce8e6;color:var(--danger);padding:2px 8px;border-radius:10px;font-size:0.75rem;margin:2px">${s.word} → ${s.meaning} (${s.wrong}x)</span>`).join('')
+        : '<span style="color:var(--muted);font-size:0.8rem">None yet</span>';
+
+      return `<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <h2 style="margin:0;color:var(--primary)">${u.name.charAt(0).toUpperCase() + u.name.slice(1)}</h2>
+          <span style="font-size:0.8rem;color:var(--muted)">Last active: ${lastActive}</span>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div style="flex:1;background:#e8eaed;border-radius:6px;height:10px;overflow:hidden">
+            <div style="background:${progressColor};height:100%;width:${u.masteryPct}%;border-radius:6px"></div>
+          </div>
+          <strong style="color:${progressColor};font-size:1.1rem">${u.masteryPct}%</strong>
+        </div>
+
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
+          <div class="stat-card" style="padding:10px">
+            <div class="stat-num" style="font-size:1.3rem;color:var(--success)">${u.mastered}</div>
+            <div class="stat-label">Mastered</div>
+          </div>
+          <div class="stat-card" style="padding:10px">
+            <div class="stat-num" style="font-size:1.3rem;color:var(--danger)">${u.struggles}</div>
+            <div class="stat-label">Struggles</div>
+          </div>
+          <div class="stat-card" style="padding:10px">
+            <div class="stat-num" style="font-size:1.3rem;color:var(--warning)">${u.weak}</div>
+            <div class="stat-label">Weak</div>
+          </div>
+          <div class="stat-card" style="padding:10px">
+            <div class="stat-num" style="font-size:1.3rem;color:var(--primary)">${u.unseen}</div>
+            <div class="stat-label">Unseen</div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:12px;padding:8px 12px;background:#f1f3f4;border-radius:8px">
+          <span>Today: <strong style="color:var(--success)">${u.todayCorrect}</strong> correct, <strong style="color:var(--danger)">${u.todayWrong}</strong> wrong</span>
+          <span>Accuracy: <strong>${u.accuracy}%</strong></span>
+          <span>Streak: <strong>${u.bestStreak}</strong></span>
+          <span>Need: <strong>${u.wordsPerDay}/day</strong></span>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:6px">Last 7 days</div>
+          <div style="display:flex;gap:4px;align-items:flex-end;height:50px">${miniChart}</div>
+        </div>
+
+        <div>
+          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:6px">Top Struggle Words</div>
+          <div>${strugglesList}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    console.error('Admin load error:', e);
+  }
 }
 
 function resetProgress() {
@@ -2190,7 +2376,13 @@ function initApp() {
   initCategoryFilters();
   nextWord();
   updateSessionScore();
+  checkAdminToken();
 }
+
+// Admin login with Enter key
+document.getElementById('admin-password')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') adminLogin();
+});
 
 // Start with login check
 checkLogin();

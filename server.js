@@ -100,6 +100,105 @@ app.put('/api/progress/:code', async (req, res) => {
 });
 
 // ============================================================
+// Admin API
+// ============================================================
+const crypto = require('crypto');
+
+// Simple token store (in-memory, resets on restart - fine for this use case)
+const adminTokens = new Set();
+
+function generateToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// Admin login - validates against EMAIL_USER/EMAIL_PASS env vars
+app.post('/api/admin/login', (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+  if (email === process.env.EMAIL_USER && password === process.env.EMAIL_PASS) {
+    const token = generateToken();
+    adminTokens.add(token);
+    // Auto-expire token after 24 hours
+    setTimeout(() => adminTokens.delete(token), 24 * 60 * 60 * 1000);
+    res.json({ ok: true, token });
+  } else {
+    res.status(401).json({ error: 'Invalid credentials' });
+  }
+});
+
+// Middleware to verify admin token
+function requireAdmin(req, res, next) {
+  const token = req.headers['x-admin-token'];
+  if (!token || !adminTokens.has(token)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+// Get all users' progress (admin only)
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT sync_code, data, updated_at FROM progress ORDER BY updated_at DESC');
+    const users = rows.map(row => {
+      const data = row.data;
+      const wordStats = data.wordStats || {};
+      let mastered = 0, struggles = 0, weak = 0;
+      const totalTracked = Object.keys(wordStats).length;
+      for (const key of Object.keys(wordStats)) {
+        const s = wordStats[key];
+        if (s.correct >= 3) mastered++;
+        else if (s.wrong >= 2) struggles++;
+        else weak++;
+      }
+      const unseen = TOTAL_WORDS - totalTracked;
+      const totalCorrect = data.totalCorrect || 0;
+      const totalWrong = data.totalWrong || 0;
+      const totalAttempted = totalCorrect + totalWrong;
+      const accuracy = totalAttempted > 0 ? Math.round(totalCorrect / totalAttempted * 100) : 0;
+      const today = new Date().toISOString().slice(0, 10);
+      const todayScore = (data.dailyScores || {})[today] || { correct: 0, wrong: 0 };
+      const daysLeft = Math.min(TOTAL_DAYS, Math.max(0, Math.ceil((EXAM_DATE - new Date()) / (1000 * 60 * 60 * 24))));
+      const wordsNeeded = Math.max(0, TARGET_WORDS - mastered);
+      const wordsPerDay = daysLeft > 0 ? Math.ceil(wordsNeeded / daysLeft) : wordsNeeded;
+
+      // Get top struggle words
+      const topStruggles = Object.entries(wordStats)
+        .filter(([, s]) => s.wrong >= 2)
+        .sort((a, b) => b[1].wrong - a[1].wrong)
+        .slice(0, 10)
+        .map(([key, s]) => ({ word: key.split('|')[0], meaning: key.split('|')[1], wrong: s.wrong, correct: s.correct }));
+
+      // Daily history (last 7 days)
+      const dailyHistory = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const dk = d.toISOString().slice(0, 10);
+        const ds = (data.dailyScores || {})[dk] || { correct: 0, wrong: 0 };
+        dailyHistory.push({ date: dk, ...ds });
+      }
+
+      return {
+        name: row.sync_code,
+        lastActive: row.updated_at,
+        mastered, struggles, weak, unseen,
+        totalAttempted, accuracy,
+        bestStreak: data.bestStreak || 0,
+        todayCorrect: todayScore.correct,
+        todayWrong: todayScore.wrong,
+        wordsPerDay, daysLeft,
+        masteryPct: Math.round(mastered / TOTAL_WORDS * 100),
+        topStruggles,
+        dailyHistory
+      };
+    });
+    res.json({ users, totalWords: TOTAL_WORDS, targetWords: TARGET_WORDS, daysLeft: Math.min(TOTAL_DAYS, Math.max(0, Math.ceil((EXAM_DATE - new Date()) / (1000 * 60 * 60 * 24)))) });
+  } catch (err) {
+    console.error('Admin users error:', err);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// ============================================================
 // Email Report
 // ============================================================
 const transporter = process.env.EMAIL_USER ? nodemailer.createTransport({
