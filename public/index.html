@@ -1522,12 +1522,18 @@ function mergeStates(local, cloud) {
   // Merge word stats - take highest counts
   const allKeys = new Set([...Object.keys(local.wordStats || {}), ...Object.keys(cloud.wordStats || {})]);
   for (const key of allKeys) {
-    const l = (local.wordStats || {})[key] || {correct:0, wrong:0, lastSeen:null};
-    const c = (cloud.wordStats || {})[key] || {correct:0, wrong:0, lastSeen:null};
+    const l = (local.wordStats || {})[key] || {correct:0, wrong:0, lastSeen:null, deEn:{correct:0,wrong:0}, enDe:{correct:0,wrong:0}};
+    const c = (cloud.wordStats || {})[key] || {correct:0, wrong:0, lastSeen:null, deEn:{correct:0,wrong:0}, enDe:{correct:0,wrong:0}};
+    const lde = l.deEn || {correct:0,wrong:0};
+    const cde = c.deEn || {correct:0,wrong:0};
+    const len = l.enDe || {correct:0,wrong:0};
+    const cen = c.enDe || {correct:0,wrong:0};
     merged.wordStats[key] = {
       correct: Math.max(l.correct, c.correct),
       wrong: Math.max(l.wrong, c.wrong),
-      lastSeen: (l.lastSeen && c.lastSeen) ? (l.lastSeen > c.lastSeen ? l.lastSeen : c.lastSeen) : (l.lastSeen || c.lastSeen)
+      lastSeen: (l.lastSeen && c.lastSeen) ? (l.lastSeen > c.lastSeen ? l.lastSeen : c.lastSeen) : (l.lastSeen || c.lastSeen),
+      deEn: { correct: Math.max(lde.correct, cde.correct), wrong: Math.max(lde.wrong, cde.wrong) },
+      enDe: { correct: Math.max(len.correct, cen.correct), wrong: Math.max(len.wrong, cen.wrong) }
     };
   }
 
@@ -1600,8 +1606,18 @@ function getWordKey(word) {
 
 function getWordStat(word) {
   const key = getWordKey(word);
-  if (!state.wordStats[key]) state.wordStats[key] = {correct:0, wrong:0, lastSeen:null};
-  return state.wordStats[key];
+  if (!state.wordStats[key]) state.wordStats[key] = {correct:0, wrong:0, lastSeen:null, deEn:{correct:0,wrong:0}, enDe:{correct:0,wrong:0}};
+  // Migrate old format: if no deEn/enDe, split existing counts evenly
+  const s = state.wordStats[key];
+  if (!s.deEn) s.deEn = {correct:0, wrong:0};
+  if (!s.enDe) s.enDe = {correct:0, wrong:0};
+  return s;
+}
+
+// A word is mastered only when correct 3+ times in BOTH directions
+function isWordMastered(word) {
+  const s = getWordStat(word);
+  return s.deEn.correct >= MASTERY_THRESHOLD && s.enDe.correct >= MASTERY_THRESHOLD;
 }
 
 function getTodayKey() {
@@ -1686,7 +1702,7 @@ function isOnCooldown(w) {
   // Only cooldown if last answer was correct (correct > wrong means likely correct last)
   if (s.correct > 0 && timeSince < CORRECT_COOLDOWN_MS) {
     // Longer cooldown for mastered words, shorter for weak
-    const cooldown = s.correct >= MASTERY_THRESHOLD
+    const cooldown = isWordMastered(w)
       ? CORRECT_COOLDOWN_MS * 2  // 1 hour for mastered
       : CORRECT_COOLDOWN_MS;      // 30 min for others
     return timeSince < cooldown;
@@ -1720,7 +1736,7 @@ function nextWord() {
     const attempts = s.correct + s.wrong;
     if (s.wrong >= 2) struggles.push(w);
     else if (attempts === 0) unseen.push(w);
-    else if (s.correct < MASTERY_THRESHOLD) weak.push(w);
+    else if (!isWordMastered(w)) weak.push(w);
     else mastered.push(w);
   }
 
@@ -1852,8 +1868,11 @@ function submitAnswer() {
   const daily = getDailyScore();
   const feedback = document.getElementById('quiz-feedback');
 
+  const dirStat = currentDirection === 'de-en' ? stat.deEn : stat.enDe;
+
   if (isCorrect) {
     stat.correct++;
+    dirStat.correct++;
     state.totalCorrect++;
     daily.correct++;
     sessionCorrect++;
@@ -1865,6 +1884,7 @@ function submitAnswer() {
     feedback.textContent = 'Correct! \u2714';
   } else {
     stat.wrong++;
+    dirStat.wrong++;
     state.totalWrong++;
     daily.wrong++;
     sessionWrong++;
@@ -1889,7 +1909,9 @@ function submitAnswer() {
 function skipWord() {
   if (currentWord) {
     const stat = getWordStat(currentWord);
+    const dirStat = currentDirection === 'de-en' ? stat.deEn : stat.enDe;
     stat.wrong++;
+    dirStat.wrong++;
     state.totalWrong++;
     const daily = getDailyScore();
     daily.wrong++;
@@ -1931,7 +1953,7 @@ function updateDailyTarget() {
   const effectiveDays = Math.min(daysLeft, TOTAL_STUDY_DAYS);
 
   let mastered = 0;
-  VOCAB.forEach(w => { if (getWordStat(w).correct >= MASTERY_THRESHOLD) mastered++; });
+  VOCAB.forEach(w => { if (isWordMastered(w)) mastered++; });
 
   const wordsNeeded = Math.max(0, TARGET_WORDS - mastered);
   const wordsPerDay = effectiveDays > 0 ? Math.ceil(wordsNeeded / effectiveDays) : wordsNeeded;
@@ -1975,8 +1997,7 @@ function updateProgress() {
   // Mastered words
   let mastered = 0;
   VOCAB.forEach(w => {
-    const s = getWordStat(w);
-    if (s.correct >= MASTERY_THRESHOLD) mastered++;
+    if (isWordMastered(w)) mastered++;
   });
   document.getElementById('stat-words-mastered').textContent = mastered;
   document.getElementById('mastered-count').textContent = mastered + ' mastered';
@@ -1989,7 +2010,7 @@ function updateProgress() {
   const cats = getCategories();
   catDiv.innerHTML = cats.map(cat => {
     const catWords = VOCAB.filter(w => w.cat === cat);
-    const catMastered = catWords.filter(w => getWordStat(w).correct >= MASTERY_THRESHOLD).length;
+    const catMastered = catWords.filter(w => isWordMastered(w)).length;
     const catPct = Math.round(catMastered / catWords.length * 100);
     return `<div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:2px">
@@ -2046,14 +2067,14 @@ function generateRevisionPDF() {
     const attempts = s.correct + s.wrong;
     if (s.wrong >= 2) struggles.push({ ...w, stat: s });
     else if (attempts === 0) unseen.push({ ...w, stat: s });
-    else if (s.correct < MASTERY_THRESHOLD) weak.push({ ...w, stat: s });
+    else if (!isWordMastered(w)) weak.push({ ...w, stat: s });
   }
 
   struggles.sort((a, b) => b.stat.wrong - a.stat.wrong);
   weak.sort((a, b) => a.stat.correct - b.stat.correct);
 
   const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-  const totalMastered = VOCAB.filter(w => getWordStat(w).correct >= MASTERY_THRESHOLD).length;
+  const totalMastered = VOCAB.filter(w => isWordMastered(w)).length;
 
   // Title
   doc.setFontSize(20);
@@ -2163,7 +2184,7 @@ function filterWords() {
   const tbody = document.getElementById('word-table-body');
   tbody.innerHTML = filtered.map(w => {
     const s = getWordStat(w);
-    const mastered = s.correct >= MASTERY_THRESHOLD;
+    const mastered = isWordMastered(w);
     return `<tr style="${mastered ? 'background:#e6f4ea' : ''}">
       <td><strong>${w.de}</strong></td><td>${w.en}</td><td style="font-size:0.8rem;color:var(--muted)">${w.cat}</td>
     </tr>`;
