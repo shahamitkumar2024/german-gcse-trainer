@@ -2282,6 +2282,13 @@ async function loadAdminDashboard() {
       const progressColor = u.masteryPct >= 80 ? 'var(--success)' : u.masteryPct >= 50 ? 'var(--warning)' : 'var(--danger)';
       const lastActive = new Date(u.lastActive).toLocaleDateString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
 
+      // Status indicator
+      const now = new Date();
+      const lastTime = new Date(u.lastActive);
+      const hoursSince = (now - lastTime) / (1000*60*60);
+      const statusDot = hoursSince < 1 ? '#34a853' : hoursSince < 24 ? '#fbbc04' : '#ea4335';
+      const statusText = hoursSince < 1 ? 'Active now' : hoursSince < 24 ? 'Today' : Math.floor(hoursSince/24) + 'd ago';
+
       // Daily history mini chart
       const maxDay = Math.max(1, ...u.dailyHistory.map(d => d.correct + d.wrong));
       const miniChart = u.dailyHistory.map(d => {
@@ -2289,30 +2296,56 @@ async function loadAdminDashboard() {
         const h = Math.max(2, Math.round(total / maxDay * 40));
         const correctH = total > 0 ? Math.round(d.correct / total * h) : 0;
         const wrongH = h - correctH;
-        const dayLabel = d.date.slice(8);
+        const dayName = new Date(d.date).toLocaleDateString('en-GB', {weekday:'short'}).slice(0,2);
         return `<div style="display:flex;flex-direction:column;align-items:center;gap:1px">
-          <div style="width:20px;height:${wrongH}px;background:var(--danger);border-radius:2px 2px 0 0"></div>
-          <div style="width:20px;height:${correctH}px;background:var(--success);border-radius:0 0 2px 2px"></div>
-          <div style="font-size:0.6rem;color:var(--muted)">${dayLabel}</div>
+          <div style="font-size:0.6rem;color:var(--muted)">${total}</div>
+          <div style="width:24px;height:${wrongH}px;background:var(--danger);border-radius:2px 2px 0 0"></div>
+          <div style="width:24px;height:${correctH}px;background:var(--success);border-radius:0 0 2px 2px"></div>
+          <div style="font-size:0.6rem;color:var(--muted)">${dayName}</div>
         </div>`;
       }).join('');
 
-      // Top struggles
-      const strugglesList = u.topStruggles.length > 0
-        ? u.topStruggles.map(s => `<span style="display:inline-block;background:#fce8e6;color:var(--danger);padding:2px 8px;border-radius:10px;font-size:0.75rem;margin:2px">${s.word} → ${s.meaning} (${s.wrong}x)</span>`).join('')
+      // Top struggles - show all with table
+      const strugglesTable = u.topStruggles.length > 0
+        ? `<table style="width:100%;border-collapse:collapse;font-size:0.8rem;margin-top:6px">
+            <tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:4px;color:var(--muted)">German</th><th style="text-align:left;padding:4px;color:var(--muted)">English</th><th style="text-align:center;padding:4px;color:var(--muted)">Wrong</th><th style="text-align:center;padding:4px;color:var(--muted)">Correct</th></tr>
+            ${u.topStruggles.map(s => `<tr style="border-bottom:1px solid #f1f3f4">
+              <td style="padding:4px;font-weight:600;color:var(--primary)">${s.word}</td>
+              <td style="padding:4px">${s.meaning}</td>
+              <td style="padding:4px;text-align:center;color:var(--danger);font-weight:600">${s.wrong}</td>
+              <td style="padding:4px;text-align:center;color:var(--success)">${s.correct}</td>
+            </tr>`).join('')}
+          </table>`
         : '<span style="color:var(--muted);font-size:0.8rem">None yet</span>';
 
-      return `<div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <h2 style="margin:0;color:var(--primary)">${u.name.charAt(0).toUpperCase() + u.name.slice(1)}</h2>
-          <span style="font-size:0.8rem;color:var(--muted)">Last active: ${lastActive}</span>
+      // Progress towards target
+      const targetPct = Math.min(100, Math.round(u.mastered / result.targetWords * 100));
+      const onTrack = u.wordsPerDay <= 28;
+
+      return `<div class="card" style="border-left:4px solid ${progressColor}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:40px;height:40px;background:var(--primary);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:700">${u.name.charAt(0).toUpperCase()}</div>
+            <div>
+              <h2 style="margin:0;color:var(--primary);font-size:1.2rem">${u.name.charAt(0).toUpperCase() + u.name.slice(1)}</h2>
+              <div style="display:flex;align-items:center;gap:4px;font-size:0.75rem;color:var(--muted)">
+                <span style="width:8px;height:8px;border-radius:50%;background:${statusDot};display:inline-block"></span>
+                ${statusText} &middot; Last: ${lastActive}
+              </div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:2rem;font-weight:800;color:${progressColor}">${u.masteryPct}%</div>
+            <div style="font-size:0.7rem;color:var(--muted)">mastery</div>
+          </div>
         </div>
 
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-          <div style="flex:1;background:#e8eaed;border-radius:6px;height:10px;overflow:hidden">
-            <div style="background:${progressColor};height:100%;width:${u.masteryPct}%;border-radius:6px"></div>
-          </div>
-          <strong style="color:${progressColor};font-size:1.1rem">${u.masteryPct}%</strong>
+        <div style="background:#e8eaed;border-radius:6px;height:10px;overflow:hidden;margin-bottom:4px">
+          <div style="background:${progressColor};height:100%;width:${u.masteryPct}%;border-radius:6px"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--muted);margin-bottom:16px">
+          <span>${u.mastered} / ${result.totalWords} words mastered</span>
+          <span>Target: ${result.targetWords} (98%)</span>
         </div>
 
         <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
@@ -2334,27 +2367,56 @@ async function loadAdminDashboard() {
           </div>
         </div>
 
-        <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:12px;padding:8px 12px;background:#f1f3f4;border-radius:8px">
-          <span>Today: <strong style="color:var(--success)">${u.todayCorrect}</strong> correct, <strong style="color:var(--danger)">${u.todayWrong}</strong> wrong</span>
-          <span>Accuracy: <strong>${u.accuracy}%</strong></span>
-          <span>Streak: <strong>${u.bestStreak}</strong></span>
-          <span>Need: <strong>${u.wordsPerDay}/day</strong></span>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;font-size:0.85rem">
+          <div style="padding:10px 12px;background:#f1f3f4;border-radius:8px">
+            <div style="color:var(--muted);font-size:0.7rem">Today's Activity</div>
+            <div><strong style="color:var(--success)">${u.todayCorrect}</strong> correct &middot; <strong style="color:var(--danger)">${u.todayWrong}</strong> wrong</div>
+          </div>
+          <div style="padding:10px 12px;background:#f1f3f4;border-radius:8px">
+            <div style="color:var(--muted);font-size:0.7rem">All Time</div>
+            <div><strong>${u.totalAttempted}</strong> attempts &middot; <strong>${u.accuracy}%</strong> accuracy</div>
+          </div>
+          <div style="padding:10px 12px;background:#f1f3f4;border-radius:8px">
+            <div style="color:var(--muted);font-size:0.7rem">Best Streak</div>
+            <div><strong>${u.bestStreak}</strong> in a row</div>
+          </div>
+          <div style="padding:10px 12px;background:${onTrack ? '#e6f4ea' : '#fce8e6'};border-radius:8px">
+            <div style="color:var(--muted);font-size:0.7rem">Daily Target</div>
+            <div><strong style="color:${onTrack ? 'var(--success)' : 'var(--danger)'}">${u.wordsPerDay}</strong> words/day needed</div>
+          </div>
         </div>
 
         <div style="margin-bottom:12px">
-          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:6px">Last 7 days</div>
-          <div style="display:flex;gap:4px;align-items:flex-end;height:50px">${miniChart}</div>
+          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:6px">Last 7 Days Activity</div>
+          <div style="display:flex;gap:6px;align-items:flex-end;height:55px;justify-content:center">${miniChart}</div>
+          <div style="display:flex;justify-content:center;gap:16px;margin-top:6px;font-size:0.7rem">
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--success);border-radius:2px;display:inline-block"></span> Correct</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--danger);border-radius:2px;display:inline-block"></span> Wrong</span>
+          </div>
         </div>
 
-        <div>
-          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:6px">Top Struggle Words</div>
-          <div>${strugglesList}</div>
+        <details style="margin-bottom:8px">
+          <summary style="cursor:pointer;font-size:0.85rem;font-weight:600;color:var(--danger);padding:6px 0">Struggle Words (${u.topStruggles.length})</summary>
+          ${strugglesTable}
+        </details>
+
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <a href="/?login=${u.name}" style="padding:6px 14px;background:var(--primary);color:white;border-radius:8px;font-size:0.8rem;text-decoration:none;font-weight:500">View as ${u.name}</a>
+          <button onclick="sendReportForUser('${u.name}')" style="padding:6px 14px;background:var(--border);color:var(--text);border:none;border-radius:8px;font-size:0.8rem;cursor:pointer;font-weight:500">Send Report</button>
         </div>
       </div>`;
     }).join('');
   } catch (e) {
     console.error('Admin load error:', e);
   }
+}
+
+async function sendReportForUser(name) {
+  try {
+    const resp = await fetch(`${API_BASE}/api/send-report`, { method: 'POST' });
+    if (resp.ok) alert('Report sent to your email!');
+    else alert('Failed to send report');
+  } catch { alert('Connection error'); }
 }
 
 function resetProgress() {
