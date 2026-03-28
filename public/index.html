@@ -1540,12 +1540,12 @@ function mergeStates(local, cloud) {
 // ============================================================
 // LOGIN / USER
 // ============================================================
-function checkLogin() {
+async function checkLogin() {
   if (syncCode) {
     document.getElementById('login-modal').style.display = 'none';
     document.getElementById('user-badge').textContent = syncCode;
     state = loadState();
-    loadFromCloud();
+    await loadFromCloud(); // wait for cloud data before rendering
     initApp();
   } else {
     document.getElementById('login-modal').style.display = 'flex';
@@ -1557,7 +1557,7 @@ function checkLogin() {
   }
 }
 
-function loginUser() {
+async function loginUser() {
   const raw = document.getElementById('login-name').value;
   const name = sanitizeInput(raw).toLowerCase();
   if (!name) return;
@@ -1567,7 +1567,7 @@ function loginUser() {
   document.getElementById('login-modal').style.display = 'none';
   document.getElementById('user-badge').textContent = syncCode;
   state = loadState();
-  loadFromCloud();
+  await loadFromCloud();
   initApp();
 }
 
