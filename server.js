@@ -199,6 +199,39 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
 });
 
 // ============================================================
+// Get detailed word stats for a specific user (admin only)
+app.get('/api/admin/users/:code/words', requireAdmin, async (req, res) => {
+  try {
+    const code = sanitizeSyncCode(req.params.code);
+    if (!code) return res.status(400).json({ error: 'Invalid code' });
+    const { rows } = await pool.query('SELECT data FROM progress WHERE sync_code = $1', [code]);
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    const data = rows[0].data;
+    const wordStats = data.wordStats || {};
+    const words = {};
+
+    // Build full word list from stats keys
+    for (const [key, stat] of Object.entries(wordStats)) {
+      const [de, en] = key.split('|');
+      words[key] = {
+        de, en,
+        correct: stat.correct || 0,
+        wrong: stat.wrong || 0,
+        lastSeen: stat.lastSeen,
+        deEn: stat.deEn || { correct: 0, wrong: 0 },
+        enDe: stat.enDe || { correct: 0, wrong: 0 },
+      };
+    }
+
+    res.json({ words, totalWords: TOTAL_WORDS });
+  } catch (err) {
+    console.error('Admin user words error:', err);
+    res.status(500).json({ error: 'Failed to fetch user words' });
+  }
+});
+
+// ============================================================
 // Email Report
 // ============================================================
 const transporter = process.env.EMAIL_USER ? nodemailer.createTransport({

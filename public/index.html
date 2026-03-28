@@ -335,6 +335,30 @@
       <button class="reset-btn" style="background:var(--muted)" onclick="adminLogout()">Logout</button>
     </div>
   </div>
+
+  <!-- Admin Detail View (hidden until a stat is clicked) -->
+  <div id="admin-detail" class="hidden">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 id="admin-detail-title" style="margin:0">Words</h2>
+        <button onclick="closeAdminDetail()" style="background:var(--border);border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600">Back</button>
+      </div>
+      <div id="admin-detail-summary" style="font-size:0.85rem;color:var(--muted);margin-bottom:12px"></div>
+      <input type="text" class="word-search" id="admin-detail-search" placeholder="Search words..." oninput="filterAdminDetail()">
+      <div style="max-height:65vh;overflow-y:auto">
+        <table class="word-table" id="admin-detail-table">
+          <thead><tr>
+            <th>German</th><th>English</th>
+            <th style="text-align:center">DE→EN</th>
+            <th style="text-align:center">EN→DE</th>
+            <th style="text-align:center">Wrong</th>
+            <th>Last Seen</th>
+          </tr></thead>
+          <tbody id="admin-detail-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -2373,7 +2397,7 @@ async function loadAdminDashboard() {
           <div style="display:flex;align-items:center;gap:10px">
             <div style="width:40px;height:40px;background:var(--primary);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:700">${u.name.charAt(0).toUpperCase()}</div>
             <div>
-              <h2 style="margin:0;color:var(--primary);font-size:1.2rem">${u.name.charAt(0).toUpperCase() + u.name.slice(1)}</h2>
+              <h2 style="margin:0;color:var(--primary);font-size:1.2rem;cursor:pointer;text-decoration:underline" onclick="showAdminDetail('${u.name}','all')">${u.name.charAt(0).toUpperCase() + u.name.slice(1)}</h2>
               <div style="display:flex;align-items:center;gap:4px;font-size:0.75rem;color:var(--muted)">
                 <span style="width:8px;height:8px;border-radius:50%;background:${statusDot};display:inline-block"></span>
                 ${statusText} &middot; Last: ${lastActive}
@@ -2395,21 +2419,21 @@ async function loadAdminDashboard() {
         </div>
 
         <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
-          <div class="stat-card" style="padding:10px">
+          <div class="stat-card" style="padding:10px;cursor:pointer" onclick="showAdminDetail('${u.name}','mastered')">
             <div class="stat-num" style="font-size:1.3rem;color:var(--success)">${u.mastered}</div>
-            <div class="stat-label">Mastered</div>
+            <div class="stat-label" style="text-decoration:underline">Mastered</div>
           </div>
-          <div class="stat-card" style="padding:10px">
+          <div class="stat-card" style="padding:10px;cursor:pointer" onclick="showAdminDetail('${u.name}','struggles')">
             <div class="stat-num" style="font-size:1.3rem;color:var(--danger)">${u.struggles}</div>
-            <div class="stat-label">Struggles</div>
+            <div class="stat-label" style="text-decoration:underline">Struggles</div>
           </div>
-          <div class="stat-card" style="padding:10px">
+          <div class="stat-card" style="padding:10px;cursor:pointer" onclick="showAdminDetail('${u.name}','weak')">
             <div class="stat-num" style="font-size:1.3rem;color:var(--warning)">${u.weak}</div>
-            <div class="stat-label">Weak</div>
+            <div class="stat-label" style="text-decoration:underline">Weak</div>
           </div>
-          <div class="stat-card" style="padding:10px">
+          <div class="stat-card" style="padding:10px;cursor:pointer" onclick="showAdminDetail('${u.name}','unseen')">
             <div class="stat-num" style="font-size:1.3rem;color:var(--primary)">${u.unseen}</div>
-            <div class="stat-label">Unseen</div>
+            <div class="stat-label" style="text-decoration:underline">Unseen</div>
           </div>
         </div>
 
@@ -2455,6 +2479,140 @@ async function loadAdminDashboard() {
   } catch (e) {
     console.error('Admin load error:', e);
   }
+}
+
+// ============================================================
+// ADMIN DETAIL VIEW
+// ============================================================
+let adminDetailData = []; // store for filtering
+
+async function showAdminDetail(userName, filter) {
+  if (!adminToken) return;
+  try {
+    const resp = await fetch(`${API_BASE}/api/admin/users/${userName}/words`, { headers: { 'x-admin-token': adminToken } });
+    if (!resp.ok) return;
+    const result = await resp.json();
+
+    const titles = {
+      mastered: 'Mastered Words', struggles: 'Struggle Words',
+      weak: 'Weak Words', unseen: 'Unseen Words', all: 'All Words'
+    };
+    const colors = {
+      mastered: 'var(--success)', struggles: 'var(--danger)',
+      weak: 'var(--warning)', unseen: 'var(--primary)', all: 'var(--text)'
+    };
+
+    document.getElementById('admin-detail-title').innerHTML =
+      `<span style="color:${colors[filter]}">${titles[filter]}</span> — ${userName.charAt(0).toUpperCase() + userName.slice(1)}`;
+
+    // Build word list based on filter
+    const allWords = [];
+    const trackedKeys = new Set(Object.keys(result.words));
+
+    // Add tracked words
+    for (const [key, w] of Object.entries(result.words)) {
+      const deEnMastered = (w.deEn?.correct || 0) >= MASTERY_THRESHOLD;
+      const enDeMastered = (w.enDe?.correct || 0) >= MASTERY_THRESHOLD;
+      const isMastered = deEnMastered && enDeMastered;
+      const isStruggle = w.wrong >= 2;
+      const isWeak = !isMastered && !isStruggle && (w.correct + w.wrong) > 0;
+
+      let category = isMastered ? 'mastered' : isStruggle ? 'struggles' : 'weak';
+      if (filter !== 'all' && filter !== 'unseen' && filter !== category) continue;
+      if (filter === 'unseen') continue; // unseen handled below
+
+      allWords.push({
+        de: w.de, en: w.en,
+        deEnCorrect: w.deEn?.correct || 0, deEnWrong: w.deEn?.wrong || 0,
+        enDeCorrect: w.enDe?.correct || 0, enDeWrong: w.enDe?.wrong || 0,
+        wrong: w.wrong, correct: w.correct,
+        lastSeen: w.lastSeen,
+        category
+      });
+    }
+
+    // Add unseen words from VOCAB
+    if (filter === 'all' || filter === 'unseen') {
+      for (const v of VOCAB) {
+        const key = v.de + '|' + v.en;
+        if (!trackedKeys.has(key)) {
+          allWords.push({
+            de: v.de, en: v.en,
+            deEnCorrect: 0, deEnWrong: 0,
+            enDeCorrect: 0, enDeWrong: 0,
+            wrong: 0, correct: 0,
+            lastSeen: null,
+            category: 'unseen'
+          });
+        }
+      }
+    }
+
+    // Sort: struggles first (by wrong desc), then weak, then mastered, then unseen
+    const catOrder = { struggles: 0, weak: 1, unseen: 2, mastered: 3 };
+    allWords.sort((a, b) => {
+      if (catOrder[a.category] !== catOrder[b.category]) return catOrder[a.category] - catOrder[b.category];
+      return b.wrong - a.wrong;
+    });
+
+    adminDetailData = allWords;
+
+    const summary = {};
+    allWords.forEach(w => { summary[w.category] = (summary[w.category] || 0) + 1; });
+    document.getElementById('admin-detail-summary').innerHTML =
+      `${allWords.length} words` +
+      (summary.mastered ? ` · <span style="color:var(--success)">${summary.mastered} mastered</span>` : '') +
+      (summary.struggles ? ` · <span style="color:var(--danger)">${summary.struggles} struggles</span>` : '') +
+      (summary.weak ? ` · <span style="color:var(--warning)">${summary.weak} weak</span>` : '') +
+      (summary.unseen ? ` · <span style="color:var(--primary)">${summary.unseen} unseen</span>` : '');
+
+    document.getElementById('admin-detail-search').value = '';
+    renderAdminDetailTable(allWords);
+
+    // Show detail, hide dashboard
+    document.getElementById('admin-dashboard').classList.add('hidden');
+    document.getElementById('admin-detail').classList.remove('hidden');
+  } catch (e) {
+    console.error('Detail view error:', e);
+  }
+}
+
+function renderAdminDetailTable(words) {
+  const catColors = { mastered: '#e6f4ea', struggles: '#fce8e6', weak: '#fef7e0', unseen: '#e8f0fe' };
+  const catLabels = { mastered: 'Mastered', struggles: 'Struggle', weak: 'Weak', unseen: 'Unseen' };
+
+  document.getElementById('admin-detail-tbody').innerHTML = words.map(w => {
+    const bg = catColors[w.category] || '';
+    const deEnStatus = w.deEnCorrect >= MASTERY_THRESHOLD
+      ? `<span style="color:var(--success);font-weight:700">${w.deEnCorrect}</span>`
+      : `<span>${w.deEnCorrect}</span><span style="color:var(--danger);font-size:0.75rem">/${w.deEnWrong}w</span>`;
+    const enDeStatus = w.enDeCorrect >= MASTERY_THRESHOLD
+      ? `<span style="color:var(--success);font-weight:700">${w.enDeCorrect}</span>`
+      : `<span>${w.enDeCorrect}</span><span style="color:var(--danger);font-size:0.75rem">/${w.enDeWrong}w</span>`;
+    const lastSeen = w.lastSeen ? new Date(w.lastSeen).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) : '—';
+
+    return `<tr style="background:${bg}">
+      <td style="padding:8px;font-weight:600">${w.de}</td>
+      <td style="padding:8px">${w.en}</td>
+      <td style="padding:8px;text-align:center">${deEnStatus}</td>
+      <td style="padding:8px;text-align:center">${enDeStatus}</td>
+      <td style="padding:8px;text-align:center;color:var(--danger);font-weight:${w.wrong>=2?'700':'400'}">${w.wrong}</td>
+      <td style="padding:8px;font-size:0.8rem;color:var(--muted)">${lastSeen}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterAdminDetail() {
+  const q = sanitizeInput(document.getElementById('admin-detail-search').value).toLowerCase();
+  const filtered = adminDetailData.filter(w =>
+    w.de.toLowerCase().includes(q) || w.en.toLowerCase().includes(q)
+  );
+  renderAdminDetailTable(filtered);
+}
+
+function closeAdminDetail() {
+  document.getElementById('admin-detail').classList.add('hidden');
+  document.getElementById('admin-dashboard').classList.remove('hidden');
 }
 
 async function sendReportForUser(name) {
