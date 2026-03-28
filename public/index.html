@@ -2409,19 +2409,22 @@ async function loadAdminDashboard() {
       const statusDot = hoursSince < 1 ? '#34a853' : hoursSince < 24 ? '#fbbc04' : '#ea4335';
       const statusText = hoursSince < 1 ? 'Active now' : hoursSince < 24 ? 'Today' : Math.floor(hoursSince/24) + 'd ago';
 
-      // Daily history mini chart
+      // Run rate + daily chart
       const maxDay = Math.max(1, ...u.dailyHistory.map(d => d.correct + d.wrong));
-      const miniChart = u.dailyHistory.map(d => {
+      const todayKey = new Date().toISOString().slice(0,10);
+      const dailyChart = u.dailyHistory.map(d => {
         const total = d.correct + d.wrong;
-        const h = Math.max(2, Math.round(total / maxDay * 40));
+        const h = Math.max(2, Math.round(total / maxDay * 60));
         const correctH = total > 0 ? Math.round(d.correct / total * h) : 0;
         const wrongH = h - correctH;
-        const dayName = new Date(d.date).toLocaleDateString('en-GB', {weekday:'short'}).slice(0,2);
-        return `<div style="display:flex;flex-direction:column;align-items:center;gap:1px">
-          <div style="font-size:0.6rem;color:var(--muted)">${total}</div>
-          <div style="width:24px;height:${wrongH}px;background:var(--danger);border-radius:2px 2px 0 0"></div>
-          <div style="width:24px;height:${correctH}px;background:var(--success);border-radius:0 0 2px 2px"></div>
-          <div style="font-size:0.6rem;color:var(--muted)">${dayName}</div>
+        const dayNum = d.date.slice(8);
+        const isToday = d.date === todayKey;
+        const border = isToday ? 'border:2px solid var(--primary);border-radius:3px;padding:1px;' : '';
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;min-width:10px;${border}">
+          <div style="font-size:0.45rem;color:var(--muted)">${d.newMastered > 0 ? d.newMastered : ''}</div>
+          <div style="width:100%;height:${wrongH}px;background:var(--danger);border-radius:1px 1px 0 0;max-width:16px;margin:0 auto"></div>
+          <div style="width:100%;height:${correctH}px;background:var(--success);border-radius:0 0 1px 1px;max-width:16px;margin:0 auto"></div>
+          <div style="font-size:0.45rem;color:var(--muted)">${parseInt(dayNum) % 5 === 0 ? dayNum : ''}</div>
         </div>`;
       }).join('');
 
@@ -2507,11 +2510,16 @@ async function loadAdminDashboard() {
         </div>
 
         <div style="margin-bottom:12px">
-          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:6px">Last 7 Days Activity</div>
-          <div style="display:flex;gap:6px;align-items:flex-end;height:55px;justify-content:center">${miniChart}</div>
-          <div style="display:flex;justify-content:center;gap:16px;margin-top:6px;font-size:0.7rem">
-            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--success);border-radius:2px;display:inline-block"></span> Correct</span>
-            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--danger);border-radius:2px;display:inline-block"></span> Wrong</span>
+          <div style="background:#f1f3f4;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:0.8rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px">
+            <span>Required: <strong style="color:${u.onTrack ? 'var(--success)' : 'var(--danger)'}">${u.wordsPerDay}/day</strong></span>
+            <span>Current avg: <strong>${u.avgPerDay}/day</strong></span>
+            <span style="padding:1px 8px;border-radius:10px;font-size:0.7rem;font-weight:600;${u.onTrack ? 'background:#e6f4ea;color:var(--success)' : 'background:#fce8e6;color:var(--danger)'}">${u.onTrack ? 'ON TRACK' : 'BEHIND'}</span>
+          </div>
+          <div style="font-size:0.75rem;color:var(--muted);margin-bottom:4px">35-Day Progress (numbers = new words mastered)</div>
+          <div style="display:flex;gap:1px;align-items:flex-end;height:70px;overflow-x:auto">${dailyChart}</div>
+          <div style="display:flex;justify-content:center;gap:12px;margin-top:4px;font-size:0.65rem">
+            <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;background:var(--success);border-radius:2px;display:inline-block"></span> Correct</span>
+            <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;background:var(--danger);border-radius:2px;display:inline-block"></span> Wrong</span>
           </div>
         </div>
 

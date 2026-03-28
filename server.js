@@ -168,14 +168,22 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
         .slice(0, 10)
         .map(([key, s]) => ({ word: key.split('|')[0], meaning: key.split('|')[1], wrong: s.wrong, correct: s.correct }));
 
-      // Daily history (last 7 days)
+      // Daily history (last 35 days)
       const dailyHistory = [];
-      for (let i = 6; i >= 0; i--) {
+      let activeDays = 0;
+      let totalNewMastered = 0;
+      for (let i = TOTAL_DAYS - 1; i >= 0; i--) {
         const d = new Date(); d.setDate(d.getDate() - i);
         const dk = d.toISOString().slice(0, 10);
         const ds = (data.dailyScores || {})[dk] || { correct: 0, wrong: 0 };
-        dailyHistory.push({ date: dk, ...ds });
+        const newMastered = Math.round(ds.correct / 3); // estimate
+        if (ds.correct > 0) activeDays++;
+        totalNewMastered += newMastered;
+        dailyHistory.push({ date: dk, correct: ds.correct, wrong: ds.wrong, newMastered });
       }
+
+      const avgPerDay = activeDays > 0 ? Math.round(totalNewMastered / activeDays) : 0;
+      const onTrack = avgPerDay >= wordsPerDay;
 
       return {
         name: row.sync_code,
@@ -187,6 +195,7 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
         todayWrong: todayScore.wrong,
         wordsPerDay, daysLeft,
         masteryPct: Math.round(mastered / TOTAL_WORDS * 100),
+        avgPerDay, onTrack,
         topStruggles,
         dailyHistory
       };
