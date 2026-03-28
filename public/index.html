@@ -85,10 +85,7 @@
   .struggle-english { color: var(--muted); }
   .struggle-count { background: #fce8e6; color: var(--danger); font-size: 0.8rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
 
-  /* Category filter */
-  .category-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
-  .cat-btn { padding: 6px 12px; border: 1px solid var(--border); background: white; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
-  .cat-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+  /* Category filter - now a dropdown */
 
   /* Quiz mode toggle */
   .mode-toggle { display: flex; background: #f1f3f4; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
@@ -137,8 +134,6 @@
     .card { padding: 16px; }
     .quiz-word { font-size: 1.4rem; padding: 16px 8px; }
     .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-    .category-filters { gap: 4px; }
-    .cat-btn { padding: 4px 8px; font-size: 0.7rem; }
     .score-bar { padding: 8px; }
     .score-item .num { font-size: 1.2rem; }
     .countdown .days-left { font-size: 2.2rem; }
@@ -215,7 +210,8 @@
       <button onclick="setQuizMode('struggles')">Struggles</button>
     </div>
 
-    <div class="category-filters" id="cat-filters"></div>
+    <select id="cat-filters" style="width:100%;padding:10px 14px;font-size:0.95rem;border:2px solid var(--border);border-radius:12px;margin-bottom:16px;background:white;color:var(--text);outline:none;cursor:pointer" onchange="selectCategory(this.value)">
+    </select>
 
     <div class="quiz-direction-wrapper">
       <span class="quiz-direction" id="quiz-direction">German &rarr; English</span>
@@ -1626,29 +1622,19 @@ function getCategories() {
 }
 
 function initCategoryFilters() {
-  const container = document.getElementById('cat-filters');
+  const select = document.getElementById('cat-filters');
   const cats = getCategories();
-  container.innerHTML = `<button class="cat-btn active" onclick="toggleCategory('all')">All</button>` +
-    cats.map(c => `<button class="cat-btn" data-cat="${c}" onclick="toggleCategory('${c.replace(/'/g,"\\'")}')">${c}</button>`).join('');
+  // Count words per category
+  const catCounts = {};
+  VOCAB.forEach(w => { catCounts[w.cat] = (catCounts[w.cat] || 0) + 1; });
+  select.innerHTML = `<option value="all">All Categories (${VOCAB.length} words)</option>` +
+    cats.map(c => `<option value="${c}">${c} (${catCounts[c]} words)</option>`).join('');
 }
 
-function toggleCategory(cat) {
-  if (cat === 'all') {
-    selectedCategories.clear();
-    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-    document.querySelector('.cat-btn').classList.add('active');
-  } else {
-    document.querySelector('.cat-btn').classList.remove('active'); // remove "All"
-    if (selectedCategories.has(cat)) {
-      selectedCategories.delete(cat);
-      document.querySelector(`[data-cat="${cat}"]`)?.classList.remove('active');
-    } else {
-      selectedCategories.add(cat);
-      document.querySelector(`[data-cat="${cat}"]`)?.classList.add('active');
-    }
-    if (selectedCategories.size === 0) {
-      document.querySelector('.cat-btn').classList.add('active');
-    }
+function selectCategory(cat) {
+  selectedCategories.clear();
+  if (cat !== 'all') {
+    selectedCategories.add(cat);
   }
   nextWord();
 }
