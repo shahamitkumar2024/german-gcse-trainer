@@ -163,12 +163,27 @@
 <!-- LOGIN MODAL -->
 <div class="modal-overlay" id="login-modal">
   <div class="modal">
-    <h2>German GCSE Trainer</h2>
-    <p>Enter your name to save and sync progress across devices</p>
-    <input type="text" id="login-name" placeholder="Enter your name..." autocomplete="off">
-    <button onclick="loginUser()">Start Learning</button>
-    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-      <button onclick="loginAsAdmin()" style="width:100%;padding:12px;font-size:0.9rem;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:var(--border);color:var(--text)">Admin Login</button>
+    <!-- Student login view -->
+    <div id="modal-student">
+      <h2>German GCSE Trainer</h2>
+      <p>Enter your name to save and sync progress across devices</p>
+      <input type="text" id="login-name" placeholder="Enter your name..." autocomplete="off">
+      <button onclick="loginUser()">Start Learning</button>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <button onclick="showModalAdmin()" style="width:100%;padding:12px;font-size:0.9rem;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:var(--border);color:var(--text)">Admin Login</button>
+      </div>
+    </div>
+    <!-- Admin login view (hidden by default) -->
+    <div id="modal-admin" class="hidden">
+      <h2>Admin Login</h2>
+      <p>Enter your credentials to view all users' progress</p>
+      <input type="email" id="modal-admin-email" placeholder="Email address" autocomplete="email" style="margin-bottom:10px">
+      <input type="password" id="modal-admin-password" placeholder="Password" style="margin-bottom:10px">
+      <button onclick="modalAdminLogin()">Login as Admin</button>
+      <p id="modal-admin-error" class="hidden" style="color:var(--danger);text-align:center;margin-top:10px;font-size:0.9rem"></p>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <button onclick="showModalStudent()" style="width:100%;padding:12px;font-size:0.9rem;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:var(--border);color:var(--text)">Back to Student Login</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1602,11 +1617,63 @@ async function loginUser() {
   initApp();
 }
 
-function loginAsAdmin() {
-  document.getElementById('login-modal').style.display = 'none';
-  state = defaultState(); // minimal state so app doesn't break
-  showPage('admin');
+function showModalAdmin() {
+  document.getElementById('modal-student').classList.add('hidden');
+  document.getElementById('modal-admin').classList.remove('hidden');
+  document.getElementById('modal-admin-email').focus();
 }
+
+function showModalStudent() {
+  document.getElementById('modal-admin').classList.add('hidden');
+  document.getElementById('modal-student').classList.remove('hidden');
+  document.getElementById('login-name').focus();
+}
+
+async function modalAdminLogin() {
+  const email = sanitizeInput(document.getElementById('modal-admin-email').value);
+  const password = document.getElementById('modal-admin-password').value;
+  const errorEl = document.getElementById('modal-admin-error');
+  errorEl.classList.add('hidden');
+
+  if (!email || !password) {
+    errorEl.textContent = 'Please enter email and password';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await resp.json();
+    if (resp.ok && data.token) {
+      adminToken = data.token;
+      localStorage.setItem('german-gcse-admin-token', adminToken);
+      document.getElementById('login-modal').style.display = 'none';
+      state = defaultState();
+      // Show admin page directly
+      ['quiz','progress','struggles','words','admin'].forEach(p => {
+        document.getElementById('page-' + p).classList.toggle('hidden', p !== 'admin');
+      });
+      document.getElementById('admin-login-card').classList.add('hidden');
+      document.getElementById('admin-dashboard').classList.remove('hidden');
+      loadAdminDashboard();
+    } else {
+      errorEl.textContent = data.error || 'Invalid credentials';
+      errorEl.classList.remove('hidden');
+    }
+  } catch (e) {
+    errorEl.textContent = 'Connection error. Try again.';
+    errorEl.classList.remove('hidden');
+  }
+}
+
+// Enter key support for admin modal
+document.getElementById('modal-admin-password')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') modalAdminLogin();
+});
 
 function logoutUser() {
   if (confirm('Switch user? Your progress is saved.')) {
