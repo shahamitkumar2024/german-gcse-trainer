@@ -167,6 +167,9 @@
     <p>Enter your name to save and sync progress across devices</p>
     <input type="text" id="login-name" placeholder="Enter your name..." autocomplete="off">
     <button onclick="loginUser()">Start Learning</button>
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+      <button onclick="loginAsAdmin()" style="width:100%;padding:12px;font-size:0.9rem;font-weight:600;border:none;border-radius:12px;cursor:pointer;background:var(--border);color:var(--text)">Admin Login</button>
+    </div>
   </div>
 </div>
 
@@ -1597,6 +1600,12 @@ async function loginUser() {
   state = loadState();
   await loadFromCloud();
   initApp();
+}
+
+function loginAsAdmin() {
+  document.getElementById('login-modal').style.display = 'none';
+  state = defaultState(); // minimal state so app doesn't break
+  showPage('admin');
 }
 
 function logoutUser() {
