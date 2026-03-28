@@ -167,11 +167,11 @@
   <h1>German GCSE Trainer <span class="sync-badge" id="sync-badge"></span></h1>
   <div class="nav-links">
     <span class="user-badge" id="user-badge" onclick="logoutUser()" title="Click to switch user"></span>
-    <button class="active" onclick="showPage('quiz')">Quiz</button>
-    <button onclick="showPage('progress')">Progress</button>
-    <button onclick="showPage('struggles')">Struggles</button>
-    <button onclick="showPage('words')">Words</button>
-    <button onclick="showPage('admin')" style="background:rgba(255,255,255,0.08)">Admin</button>
+    <button class="active" onclick="showPage('quiz',this)">Quiz</button>
+    <button onclick="showPage('progress',this)">Progress</button>
+    <button onclick="showPage('struggles',this)">Struggles</button>
+    <button onclick="showPage('words',this)">Words</button>
+    <button onclick="showPage('admin',this)">Admin</button>
   </div>
 </div>
 
@@ -2175,12 +2175,12 @@ function filterWords() {
 // ============================================================
 // NAVIGATION
 // ============================================================
-function showPage(page) {
+function showPage(page, btn) {
   ['quiz','progress','struggles','words','admin'].forEach(p => {
     document.getElementById('page-' + p).classList.toggle('hidden', p !== page);
   });
   document.querySelectorAll('.nav-links button').forEach(b => b.classList.remove('active'));
-  event?.target?.classList.add('active');
+  if (btn) btn.classList.add('active');
 
   if (page === 'progress') updateProgress();
   if (page === 'struggles') updateStruggles();
