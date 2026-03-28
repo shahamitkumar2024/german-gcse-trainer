@@ -115,7 +115,7 @@ function generateToken() {
 app.post('/api/admin/login', (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
-  if (email === process.env.EMAIL_USER && password === process.env.EMAIL_PASS) {
+  if (email === process.env.EMAIL_USER && password === (process.env.ADMIN_PASSWORD || process.env.EMAIL_PASS)) {
     const token = generateToken();
     adminTokens.add(token);
     // Auto-expire token after 24 hours
