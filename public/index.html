@@ -1637,6 +1637,42 @@ function weightedPick(items) {
   return items[items.length - 1].word;
 }
 
+// Track recently shown words to avoid repetition
+const recentlyShown = []; // last N word keys
+const RECENT_LIMIT = 15;  // don't repeat within last 15 words
+
+function isRecentlyShown(w) {
+  return recentlyShown.includes(getWordKey(w));
+}
+
+function markShown(w) {
+  recentlyShown.push(getWordKey(w));
+  if (recentlyShown.length > RECENT_LIMIT) recentlyShown.shift();
+}
+
+// Cooldown: skip words answered correctly in last N minutes
+const CORRECT_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
+
+function isOnCooldown(w) {
+  const s = getWordStat(w);
+  if (!s.lastSeen) return false;
+  const timeSince = Date.now() - new Date(s.lastSeen).getTime();
+  // Only cooldown if last answer was correct (correct > wrong means likely correct last)
+  if (s.correct > 0 && timeSince < CORRECT_COOLDOWN_MS) {
+    // Longer cooldown for mastered words, shorter for weak
+    const cooldown = s.correct >= MASTERY_THRESHOLD
+      ? CORRECT_COOLDOWN_MS * 2  // 1 hour for mastered
+      : CORRECT_COOLDOWN_MS;      // 30 min for others
+    return timeSince < cooldown;
+  }
+  return false;
+}
+
+function filterCooldownAndRecent(words) {
+  const filtered = words.filter(w => !isRecentlyShown(w) && !isOnCooldown(w));
+  return filtered.length > 0 ? filtered : words.filter(w => !isRecentlyShown(w));
+}
+
 function nextWord() {
   waitingForNext = false;
   const pool = getFilteredVocab();
@@ -1647,7 +1683,7 @@ function nextWord() {
   }
 
   // Smart selection: 50% struggles, 30% unseen, 20% review
-  // Bucket words into categories
+  // Bucket words into categories, respecting cooldowns
   const struggles = []; // wrong 2+ times
   const unseen = [];    // never attempted
   const weak = [];      // attempted but not mastered (correct < 3)
@@ -1662,27 +1698,40 @@ function nextWord() {
     else mastered.push(w);
   }
 
+  // Apply cooldown + recent filters to each bucket
+  const coolStruggles = filterCooldownAndRecent(struggles);
+  const coolWeak = filterCooldownAndRecent(weak);
+  const coolMastered = filterCooldownAndRecent(mastered);
+  // Unseen words don't need cooldown, just recent filter
+  const coolUnseen = unseen.filter(w => !isRecentlyShown(w));
+  const availUnseen = coolUnseen.length > 0 ? coolUnseen : unseen;
+
   // Pick a bucket based on weighted probability
   let chosen;
   const roll = Math.random();
-  if (struggles.length > 0 && roll < 0.50) {
+  if (coolStruggles.length > 0 && roll < 0.50) {
     // 50% chance: pick a struggle word (weighted by wrong count)
-    const weighted = struggles.map(w => ({ word: w, weight: getWordStat(w).wrong }));
+    const weighted = coolStruggles.map(w => ({ word: w, weight: getWordStat(w).wrong }));
     chosen = weightedPick(weighted);
-  } else if (unseen.length > 0 && roll < 0.80) {
+  } else if (availUnseen.length > 0 && roll < 0.80) {
     // 30% chance: pick an unseen word (random)
-    chosen = unseen[Math.floor(Math.random() * unseen.length)];
-  } else if (weak.length > 0) {
+    chosen = availUnseen[Math.floor(Math.random() * availUnseen.length)];
+  } else if (coolWeak.length > 0) {
     // Pick a weak word for review
-    chosen = weak[Math.floor(Math.random() * weak.length)];
-  } else if (unseen.length > 0) {
-    chosen = unseen[Math.floor(Math.random() * unseen.length)];
-  } else if (struggles.length > 0) {
-    chosen = struggles[Math.floor(Math.random() * struggles.length)];
+    chosen = coolWeak[Math.floor(Math.random() * coolWeak.length)];
+  } else if (availUnseen.length > 0) {
+    chosen = availUnseen[Math.floor(Math.random() * availUnseen.length)];
+  } else if (coolStruggles.length > 0) {
+    chosen = coolStruggles[Math.floor(Math.random() * coolStruggles.length)];
+  } else if (coolMastered.length > 0) {
+    // Review mastered words only when nothing else available
+    chosen = coolMastered[Math.floor(Math.random() * coolMastered.length)];
   } else {
-    // All mastered - review random mastered words
-    chosen = mastered[Math.floor(Math.random() * mastered.length)];
+    // Fallback: pick any word from pool
+    chosen = pool[Math.floor(Math.random() * pool.length)];
   }
+
+  markShown(chosen);
 
   currentWord = chosen;
 
