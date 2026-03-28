@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>German GCSE Vocabulary Trainer</title>
+<style>
+  :root {
+    --primary: #1a73e8;
+    --success: #34a853;
+    --danger: #ea4335;
+    --warning: #fbbc04;
+    --bg: #f8f9fa;
+    --card: #ffffff;
+    --text: #202124;
+    --muted: #5f6368;
+    --border: #dadce0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* Navigation */
+  .nav { background: var(--primary); color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .nav h1 { font-size: 1.2rem; font-weight: 600; }
+  .nav-links { display: flex; gap: 4px; }
+  .nav-links button { background: rgba(255,255,255,0.15); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: background 0.2s; }
+  .nav-links button:hover, .nav-links button.active { background: rgba(255,255,255,0.3); }
+
+  /* Container */
+  .container { max-width: 700px; margin: 0 auto; padding: 20px; }
+
+  /* Cards */
+  .card { background: var(--card); border-radius: 16px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .card h2 { font-size: 1.3rem; margin-bottom: 16px; }
+  .card h3 { font-size: 1.1rem; margin-bottom: 12px; color: var(--muted); }
+
+  /* Quiz */
+  .quiz-word { font-size: 2rem; font-weight: 700; text-align: center; padding: 30px 10px; color: var(--primary); }
+  .quiz-category { text-align: center; font-size: 0.85rem; color: var(--muted); margin-bottom: 8px; }
+  .quiz-direction { text-align: center; font-size: 0.9rem; color: var(--muted); margin-bottom: 20px; padding: 6px 12px; background: #e8f0fe; border-radius: 20px; display: inline-block; }
+  .quiz-direction-wrapper { text-align: center; margin-bottom: 16px; }
+  .quiz-input { width: 100%; padding: 14px 16px; font-size: 1.1rem; border: 2px solid var(--border); border-radius: 12px; outline: none; transition: border-color 0.2s; }
+  .quiz-input:focus { border-color: var(--primary); }
+  .quiz-input.correct { border-color: var(--success); background: #e6f4ea; }
+  .quiz-input.wrong { border-color: var(--danger); background: #fce8e6; }
+  .quiz-btn { width: 100%; padding: 14px; font-size: 1.1rem; font-weight: 600; border: none; border-radius: 12px; cursor: pointer; margin-top: 12px; transition: transform 0.1s, opacity 0.2s; }
+  .quiz-btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-success { background: var(--success); color: white; }
+  .btn-skip { background: var(--border); color: var(--text); }
+  .quiz-feedback { text-align: center; padding: 12px; margin-top: 12px; border-radius: 10px; font-weight: 600; font-size: 1rem; }
+  .feedback-correct { background: #e6f4ea; color: #137333; }
+  .feedback-wrong { background: #fce8e6; color: #c5221f; }
+
+  /* Score bar */
+  .score-bar { display: flex; justify-content: space-around; padding: 12px; background: #f1f3f4; border-radius: 12px; margin-bottom: 16px; }
+  .score-item { text-align: center; }
+  .score-item .num { font-size: 1.5rem; font-weight: 700; }
+  .score-item .label { font-size: 0.75rem; color: var(--muted); }
+  .score-correct .num { color: var(--success); }
+  .score-wrong .num { color: var(--danger); }
+  .score-streak .num { color: var(--warning); }
+
+  /* Progress */
+  .progress-bar { height: 10px; background: #e8eaed; border-radius: 5px; overflow: hidden; margin: 8px 0; }
+  .progress-fill { height: 100%; border-radius: 5px; transition: width 0.5s ease; }
+  .progress-fill.green { background: var(--success); }
+  .progress-fill.blue { background: var(--primary); }
+  .progress-fill.orange { background: var(--warning); }
+
+  /* Stats grid */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .stat-card { background: #f1f3f4; border-radius: 12px; padding: 16px; text-align: center; }
+  .stat-card .stat-num { font-size: 2rem; font-weight: 700; color: var(--primary); }
+  .stat-card .stat-label { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+
+  /* Struggle words table */
+  .struggle-list { list-style: none; }
+  .struggle-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .struggle-item:last-child { border-bottom: none; }
+  .struggle-german { font-weight: 600; color: var(--primary); }
+  .struggle-english { color: var(--muted); }
+  .struggle-count { background: #fce8e6; color: var(--danger); font-size: 0.8rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
+
+  /* Category filter */
+  .category-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .cat-btn { padding: 6px 12px; border: 1px solid var(--border); background: white; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
+  .cat-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+  /* Quiz mode toggle */
+  .mode-toggle { display: flex; background: #f1f3f4; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+  .mode-toggle button { flex: 1; padding: 10px; border: none; background: transparent; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; }
+  .mode-toggle button.active { background: var(--primary); color: white; border-radius: 10px; }
+
+  /* Settings */
+  .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .setting-row:last-child { border-bottom: none; }
+  .setting-label { font-weight: 500; }
+  .setting-desc { font-size: 0.8rem; color: var(--muted); }
+  select, input[type="number"] { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; }
+
+  /* Days countdown */
+  .countdown { text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 16px; margin-bottom: 16px; }
+  .countdown .days-left { font-size: 3rem; font-weight: 800; }
+  .countdown .days-label { font-size: 0.9rem; opacity: 0.9; }
+
+  /* Heatmap */
+  .heatmap { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin: 12px 0; }
+  .heatmap-day { aspect-ratio: 1; border-radius: 3px; background: #eee; }
+  .heatmap-day.level-1 { background: #c6e48b; }
+  .heatmap-day.level-2 { background: #7bc96f; }
+  .heatmap-day.level-3 { background: #239a3b; }
+  .heatmap-day.level-4 { background: #196127; }
+
+  /* Word list */
+  .word-search { width: 100%; padding: 12px 16px; border: 2px solid var(--border); border-radius: 12px; font-size: 1rem; margin-bottom: 12px; outline: none; }
+  .word-search:focus { border-color: var(--primary); }
+  .word-table { width: 100%; border-collapse: collapse; }
+  .word-table th { text-align: left; padding: 10px; border-bottom: 2px solid var(--border); font-size: 0.85rem; color: var(--muted); }
+  .word-table td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  .word-table tr:hover { background: #f8f9fa; }
+
+  .hidden { display: none !important; }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    .nav h1 { font-size: 1rem; }
+    .nav-links button { padding: 6px 10px; font-size: 0.75rem; }
+    .quiz-word { font-size: 1.5rem; padding: 20px 10px; }
+    .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  }
+
+  .reset-btn { background: var(--danger); color: white; border: none; padding: 12px 24px; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 600; margin-top: 12px; }
+  .practice-btn { background: var(--warning); color: #333; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <h1>German GCSE Trainer</h1>
+  <div class="nav-links">
+    <button class="active" onclick="showPage('quiz')">Quiz</button>
+    <button onclick="showPage('progress')">Progress</button>
+    <button onclick="showPage('struggles')">Struggles</button>
+    <button onclick="showPage('words')">Words</button>
+  </div>
+</div>
+
+<!-- QUIZ PAGE -->
+<div id="page-quiz" class="container">
+  <div class="score-bar">
+    <div class="score-item score-correct"><div class="num" id="session-correct">0</div><div class="label">Correct</div></div>
+    <div class="score-item score-wrong"><div class="num" id="session-wrong">0</div><div class="label">Wrong</div></div>
+    <div class="score-item score-streak"><div class="num" id="session-streak">0</div><div class="label">Streak</div></div>
+  </div>
+
+  <div class="card">
+    <div class="mode-toggle">
+      <button class="active" onclick="setQuizMode('mixed')">Mixed</button>
+      <button onclick="setQuizMode('de-en')">DE &rarr; EN</button>
+      <button onclick="setQuizMode('en-de')">EN &rarr; DE</button>
+      <button onclick="setQuizMode('struggles')">Struggles</button>
+    </div>
+
+    <div class="category-filters" id="cat-filters"></div>
+
+    <div class="quiz-direction-wrapper">
+      <span class="quiz-direction" id="quiz-direction">German &rarr; English</span>
+    </div>
+    <div class="quiz-category" id="quiz-category">General</div>
+    <div class="quiz-word" id="quiz-word">Loading...</div>
+
+    <input type="text" class="quiz-input" id="quiz-input" placeholder="Type your answer..." autocomplete="off" autocapitalize="off" spellcheck="false">
+
+    <button class="quiz-btn btn-primary" id="btn-submit" onclick="submitAnswer()">Check Answer</button>
+    <button class="quiz-btn btn-skip" onclick="skipWord()">Skip</button>
+
+    <div class="quiz-feedback hidden" id="quiz-feedback"></div>
+  </div>
+</div>
+
+<!-- PROGRESS PAGE -->
+<div id="page-progress" class="container hidden">
+  <div class="countdown">
+    <div class="days-left" id="days-left">40</div>
+    <div class="days-label">days until GCSE exam</div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-num" id="stat-total-answered">0</div><div class="stat-label">Total Answered</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-accuracy">0%</div><div class="stat-label">Accuracy</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-words-mastered">0</div><div class="stat-label">Words Mastered</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-best-streak">0</div><div class="stat-label">Best Streak</div></div>
+  </div>
+
+  <div class="card">
+    <h3>Words Mastered</h3>
+    <div class="progress-bar"><div class="progress-fill green" id="mastered-bar" style="width:0%"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:var(--muted)">
+      <span id="mastered-count">0 mastered</span>
+      <span id="mastered-total">of 0 words</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Category Breakdown</h3>
+    <div id="category-breakdown"></div>
+  </div>
+
+  <div class="card">
+    <h3>Daily Activity (last 40 days)</h3>
+    <div class="heatmap" id="heatmap"></div>
+    <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--muted);margin-top:6px">
+      <span>Less</span>
+      <div style="display:flex;gap:3px">
+        <div style="width:12px;height:12px;background:#eee;border-radius:2px"></div>
+        <div style="width:12px;height:12px;background:#c6e48b;border-radius:2px"></div>
+        <div style="width:12px;height:12px;background:#7bc96f;border-radius:2px"></div>
+        <div style="width:12px;height:12px;background:#239a3b;border-radius:2px"></div>
+        <div style="width:12px;height:12px;background:#196127;border-radius:2px"></div>
+      </div>
+      <span>More</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Today's Score</h3>
+    <div id="today-score-details"></div>
+  </div>
+
+  <div style="text-align:center;margin-top:20px">
+    <button class="reset-btn" onclick="resetProgress()">Reset All Progress</button>
+  </div>
+</div>
+
+<!-- STRUGGLES PAGE -->
+<div id="page-struggles" class="container hidden">
+  <div class="card">
+    <h2>Struggle Words</h2>
+    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px">Words you've got wrong 2+ times. Practice these!</p>
+    <button class="practice-btn" onclick="practiceStruggles()" style="margin-bottom:16px">Practice Struggle Words</button>
+    <ul class="struggle-list" id="struggle-list"></ul>
+    <p id="no-struggles" class="hidden" style="text-align:center;color:var(--muted);padding:30px">No struggle words yet. Keep practising!</p>
+  </div>
+</div>
+
+<!-- WORDS PAGE -->
+<div id="page-words" class="container hidden">
+  <div class="card">
+    <h2>All Words (<span id="word-count">0</span>)</h2>
+    <input type="text" class="word-search" id="word-search" placeholder="Search words..." oninput="filterWords()">
+    <div style="max-height:60vh;overflow-y:auto">
+      <table class="word-table">
+        <thead><tr><th>German</th><th>English</th><th>Category</th></tr></thead>
+        <tbody id="word-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// VOCABULARY DATA - Extracted from GCSE PDF
+// ============================================================
+const VOCAB = [
+  // SECTION 1: GENERAL STUFF - Numbers
+  {de:"null",en:"zero",cat:"Numbers"},
+  {de:"eins",en:"one",cat:"Numbers"},
+  {de:"zwei",en:"two",cat:"Numbers"},
+  {de:"drei",en:"three",cat:"Numbers"},
+  {de:"vier",en:"four",cat:"Numbers"},
+  {de:"f\u00fcnf",en:"five",cat:"Numbers"},
+  {de:"sechs",en:"six",cat:"Numbers"},
+  {de:"sieben",en:"seven",cat:"Numbers"},
+  {de:"acht",en:"eight",cat:"Numbers"},
+  {de:"neun",en:"nine",cat:"Numbers"},
+  {de:"zehn",en:"ten",cat:"Numbers"},
+  {de:"elf",en:"eleven",cat:"Numbers"},
+  {de:"zw\u00f6lf",en:"twelve",cat:"Numbers"},
+  {de:"dreizehn",en:"thirteen",cat:"Numbers"},
+  {de:"vierzehn",en:"fourteen",cat:"Numbers"},
+  {de:"f\u00fcnfzehn",en:"fifteen",cat:"Numbers"},
+  {de:"sechzehn",en:"sixteen",cat:"Numbers"},
+  {de:"siebzehn",en:"seventeen",cat:"Numbers"},
+  {de:"achtzehn",en:"eighteen",cat:"Numbers"},
+  {de:"neunzehn",en:"nineteen",cat:"Numbers"},
+  {de:"zwanzig",en:"twenty",cat:"Numbers"},
+  {de:"drei\u00dfig",en:"thirty",cat:"Numbers"},
+  {de:"vierzig",en:"forty",cat:"Numbers"},
+  {de:"f\u00fcnfzig",en:"fifty",cat:"Numbers"},
+  {de:"sechzig",en:"sixty",cat:"Numbers"},
+  {de:"siebzig",en:"seventy",cat:"Numbers"},
+  {de:"achtzig",en:"eighty",cat:"Numbers"},
+  {de:"neunzig",en:"ninety",cat:"Numbers"},
+  {de:"hundert",en:"hundred",cat:"Numbers"},
+  {de:"tausend",en:"thousand",cat:"Numbers"},
+  {de:"eine Million",en:"a million",cat:"Numbers"},
+  {de:"die H\u00e4lfte",en:"half",cat:"Numbers"},
+  {de:"die Menge",en:"amount, quantity",cat:"Numbers"},
+  {de:"ein Paar",en:"a pair, a couple",cat:"Numbers"},
+  {de:"das Prozent",en:"percent",cat:"Numbers"},
+  {de:"die Anzahl",en:"number, quantity",cat:"Numbers"},
+  {de:"der Rest",en:"rest",cat:"Numbers"},
+
+  // Time
+  {de:"die Zeit",en:"time",cat:"Time"},
+  {de:"die Stunde",en:"hour",cat:"Time"},
+  {de:"die Minute",en:"minute",cat:"Time"},
+  {de:"die Sekunde",en:"second",cat:"Time"},
+  {de:"der Tag",en:"day",cat:"Time"},
+  {de:"die Woche",en:"week",cat:"Time"},
+  {de:"der Monat",en:"month",cat:"Time"},
+  {de:"das Jahr",en:"year",cat:"Time"},
+  {de:"der Morgen",en:"morning",cat:"Time"},
+  {de:"der Nachmittag",en:"afternoon",cat:"Time"},
+  {de:"der Abend",en:"evening",cat:"Time"},
+  {de:"die Nacht",en:"night",cat:"Time"},
+  {de:"der Moment",en:"moment",cat:"Time"},
+  {de:"das Viertel",en:"quarter",cat:"Time"},
+  {de:"der Zeitpunkt",en:"point in time",cat:"Time"},
+  {de:"heute",en:"today",cat:"Time"},
+  {de:"gestern",en:"yesterday",cat:"Time"},
+  {de:"morgen",en:"tomorrow",cat:"Time"},
+  {de:"vorgestern",en:"day before yesterday",cat:"Time"},
+  {de:"\u00fcbermorgen",en:"day after tomorrow",cat:"Time"},
+
+  // Dates / Days
+  {de:"Montag",en:"Monday",cat:"Dates"},
+  {de:"Dienstag",en:"Tuesday",cat:"Dates"},
+  {de:"Mittwoch",en:"Wednesday",cat:"Dates"},
+  {de:"Donnerstag",en:"Thursday",cat:"Dates"},
+  {de:"Freitag",en:"Friday",cat:"Dates"},
+  {de:"Samstag",en:"Saturday",cat:"Dates"},
+  {de:"Sonntag",en:"Sunday",cat:"Dates"},
+  {de:"Januar",en:"January",cat:"Dates"},
+  {de:"Februar",en:"February",cat:"Dates"},
+  {de:"M\u00e4rz",en:"March",cat:"Dates"},
+  {de:"April",en:"April",cat:"Dates"},
+  {de:"Mai",en:"May",cat:"Dates"},
+  {de:"Juni",en:"June",cat:"Dates"},
+  {de:"Juli",en:"July",cat:"Dates"},
+  {de:"August",en:"August",cat:"Dates"},
+  {de:"September",en:"September",cat:"Dates"},
+  {de:"Oktober",en:"October",cat:"Dates"},
+  {de:"November",en:"November",cat:"Dates"},
+  {de:"Dezember",en:"December",cat:"Dates"},
+  {de:"das Wochenende",en:"weekend",cat:"Dates"},
+  {de:"der Wochentag",en:"weekday",cat:"Dates"},
+
+  // Time Phrases
+  {de:"das Jahrhundert",en:"century",cat:"Time Phrases"},
+  {de:"die Zukunft",en:"future",cat:"Time Phrases"},
+  {de:"die Gegenwart",en:"present",cat:"Time Phrases"},
+  {de:"die Vergangenheit",en:"past",cat:"Time Phrases"},
+  {de:"der Anfang",en:"beginning, start",cat:"Time Phrases"},
+  {de:"fr\u00fch",en:"early",cat:"Time Phrases"},
+  {de:"sp\u00e4t",en:"late",cat:"Time Phrases"},
+  {de:"jetzt",en:"now",cat:"Time Phrases"},
+  {de:"in letzter Zeit",en:"recently",cat:"Time Phrases"},
+  {de:"sofort",en:"immediately",cat:"Time Phrases"},
+  {de:"t\u00e4glich",en:"daily",cat:"Time Phrases"},
+  {de:"regelm\u00e4\u00dfig",en:"regularly",cat:"Time Phrases"},
+  {de:"bald",en:"soon",cat:"Time Phrases"},
+  {de:"immer",en:"always",cat:"Time Phrases"},
+  {de:"oft",en:"often",cat:"Time Phrases"},
+  {de:"manchmal",en:"sometimes",cat:"Time Phrases"},
+  {de:"ab und zu",en:"now and then",cat:"Time Phrases"},
+  {de:"selten",en:"rarely, seldom",cat:"Time Phrases"},
+  {de:"nie",en:"never",cat:"Time Phrases"},
+  {de:"noch",en:"still, yet",cat:"Time Phrases"},
+  {de:"nochmal",en:"once more",cat:"Time Phrases"},
+  {de:"damals",en:"back then",cat:"Time Phrases"},
+  {de:"inzwischen",en:"meanwhile",cat:"Time Phrases"},
+
+  // Questions
+  {de:"was?",en:"what?",cat:"Questions"},
+  {de:"wann?",en:"when?",cat:"Questions"},
+  {de:"wo?",en:"where?",cat:"Questions"},
+  {de:"wer?",en:"who?",cat:"Questions"},
+  {de:"wie?",en:"how?",cat:"Questions"},
+  {de:"wie viel?",en:"how much?",cat:"Questions"},
+  {de:"wie viele?",en:"how many?",cat:"Questions"},
+  {de:"warum?",en:"why?",cat:"Questions"},
+  {de:"welcher / welche / welches",en:"which?",cat:"Questions"},
+  {de:"was f\u00fcr?",en:"what kind of?",cat:"Questions"},
+  {de:"wohin?",en:"where to?",cat:"Questions"},
+  {de:"woher?",en:"where from?",cat:"Questions"},
+
+  // Being Polite
+  {de:"hallo",en:"hello",cat:"Being Polite"},
+  {de:"guten Morgen",en:"good morning",cat:"Being Polite"},
+  {de:"guten Abend",en:"good evening",cat:"Being Polite"},
+  {de:"auf Wiedersehen",en:"goodbye",cat:"Being Polite"},
+  {de:"tsch\u00fcss",en:"bye",cat:"Being Polite"},
+  {de:"bitte",en:"please",cat:"Being Polite"},
+  {de:"danke",en:"thank you",cat:"Being Polite"},
+  {de:"ich m\u00f6chte",en:"I would like",cat:"Being Polite"},
+  {de:"gut gemacht",en:"well done",cat:"Being Polite"},
+  {de:"Entschuldigung",en:"excuse me, sorry",cat:"Being Polite"},
+
+  // Opinions
+  {de:"die Meinung",en:"opinion",cat:"Opinions"},
+  {de:"meiner Meinung nach",en:"in my opinion",cat:"Opinions"},
+  {de:"ich denke",en:"I think",cat:"Opinions"},
+  {de:"ich finde",en:"I find",cat:"Opinions"},
+  {de:"ich glaube",en:"I believe",cat:"Opinions"},
+  {de:"gern",en:"gladly, like to",cat:"Opinions"},
+  {de:"lieben",en:"to love",cat:"Opinions"},
+  {de:"hassen",en:"to hate",cat:"Opinions"},
+  {de:"m\u00f6gen",en:"to like",cat:"Opinions"},
+  {de:"es ist mir egal",en:"I don't mind",cat:"Opinions"},
+  {de:"sich interessieren f\u00fcr",en:"to be interested in",cat:"Opinions"},
+  {de:"sich freuen auf",en:"to look forward to",cat:"Opinions"},
+
+  // Adjectives - Opinions
+  {de:"gut",en:"good",cat:"Adjectives"},
+  {de:"schlecht",en:"bad",cat:"Adjectives"},
+  {de:"sch\u00f6n",en:"beautiful, nice",cat:"Adjectives"},
+  {de:"schrecklich",en:"terrible",cat:"Adjectives"},
+  {de:"toll",en:"great",cat:"Adjectives"},
+  {de:"fantastisch",en:"fantastic",cat:"Adjectives"},
+  {de:"perfekt",en:"perfect",cat:"Adjectives"},
+  {de:"furchtbar",en:"awful, dreadful",cat:"Adjectives"},
+  {de:"interessant",en:"interesting",cat:"Adjectives"},
+  {de:"langweilig",en:"boring",cat:"Adjectives"},
+  {de:"lustig",en:"funny",cat:"Adjectives"},
+  {de:"klar",en:"clear",cat:"Adjectives"},
+  {de:"einfach",en:"easy, simple",cat:"Adjectives"},
+  {de:"schwierig",en:"difficult",cat:"Adjectives"},
+  {de:"bl\u00f6d",en:"stupid, silly",cat:"Adjectives"},
+  {de:"super",en:"super, great",cat:"Adjectives"},
+  {de:"wunderbar",en:"wonderful",cat:"Adjectives"},
+  {de:"kurz",en:"short",cat:"Adjectives"},
+  {de:"lang",en:"long",cat:"Adjectives"},
+  {de:"langsam",en:"slow",cat:"Adjectives"},
+  {de:"schnell",en:"fast, quick",cat:"Adjectives"},
+  {de:"extrem",en:"extreme",cat:"Adjectives"},
+  {de:"wahr",en:"true",cat:"Adjectives"},
+  {de:"falsch",en:"false, wrong",cat:"Adjectives"},
+  {de:"wichtig",en:"important",cat:"Adjectives"},
+  {de:"n\u00f6tig",en:"necessary",cat:"Adjectives"},
+
+  // Giving Reasons
+  {de:"weil",en:"because",cat:"Giving Reasons"},
+  {de:"da",en:"since, as",cat:"Giving Reasons"},
+  {de:"denn",en:"because, for",cat:"Giving Reasons"},
+  {de:"deshalb",en:"therefore",cat:"Giving Reasons"},
+  {de:"auch",en:"also",cat:"Giving Reasons"},
+  {de:"zum Beispiel",en:"for example",cat:"Giving Reasons"},
+  {de:"und so weiter",en:"and so on",cat:"Giving Reasons"},
+  {de:"das Thema",en:"topic, theme",cat:"Giving Reasons"},
+  {de:"das Beispiel",en:"example",cat:"Giving Reasons"},
+  {de:"die Art",en:"type, kind",cat:"Giving Reasons"},
+  {de:"die Sache",en:"thing, matter",cat:"Giving Reasons"},
+  {de:"das Ding",en:"thing",cat:"Giving Reasons"},
+
+  // Useful Nouns
+  {de:"der Vorschlag",en:"suggestion",cat:"Useful Nouns"},
+  {de:"die Entscheidung",en:"decision",cat:"Useful Nouns"},
+  {de:"die Beschreibung",en:"description",cat:"Useful Nouns"},
+  {de:"die Bedeutung",en:"meaning",cat:"Useful Nouns"},
+  {de:"der Ausdruck",en:"expression",cat:"Useful Nouns"},
+  {de:"die Auskunft",en:"information",cat:"Useful Nouns"},
+  {de:"der Teil",en:"part",cat:"Useful Nouns"},
+  {de:"die Reihe",en:"row, series",cat:"Useful Nouns"},
+  {de:"der Zweck",en:"purpose",cat:"Useful Nouns"},
+  {de:"die Richtung",en:"direction",cat:"Useful Nouns"},
+
+  // Useful Adjectives and Adverbs
+  {de:"einmal",en:"once",cat:"Useful Adjectives"},
+  {de:"besonders",en:"especially",cat:"Useful Adjectives"},
+  {de:"fast",en:"almost, nearly",cat:"Useful Adjectives"},
+  {de:"typisch",en:"typical",cat:"Useful Adjectives"},
+  {de:"total",en:"totally",cat:"Useful Adjectives"},
+  {de:"sicher",en:"sure, certain",cat:"Useful Adjectives"},
+  {de:"pl\u00f6tzlich",en:"suddenly",cat:"Useful Adjectives"},
+  {de:"nur",en:"only",cat:"Useful Adjectives"},
+  {de:"m\u00f6glich",en:"possible",cat:"Useful Adjectives"},
+  {de:"nat\u00fcrlich",en:"naturally, of course",cat:"Useful Adjectives"},
+  {de:"genau",en:"exact, exactly",cat:"Useful Adjectives"},
+  {de:"genug",en:"enough",cat:"Useful Adjectives"},
+  {de:"ganz",en:"quite, entirely",cat:"Useful Adjectives"},
+  {de:"irgendwo",en:"somewhere",cat:"Useful Adjectives"},
+  {de:"irgendwie",en:"somehow",cat:"Useful Adjectives"},
+  {de:"ziemlich",en:"fairly, quite",cat:"Useful Adjectives"},
+  {de:"wahrscheinlich",en:"probably",cat:"Useful Adjectives"},
+  {de:"vielleicht",en:"perhaps, maybe",cat:"Useful Adjectives"},
+  {de:"wieder",en:"again",cat:"Useful Adjectives"},
+  {de:"niedrig",en:"low",cat:"Useful Adjectives"},
+  {de:"hoch",en:"high, tall",cat:"Useful Adjectives"},
+
+  // Useful Verbs
+  {de:"sein",en:"to be",cat:"Useful Verbs"},
+  {de:"haben",en:"to have",cat:"Useful Verbs"},
+  {de:"werden",en:"to become",cat:"Useful Verbs"},
+  {de:"machen",en:"to make, to do",cat:"Useful Verbs"},
+  {de:"gehen",en:"to go",cat:"Useful Verbs"},
+  {de:"kommen",en:"to come",cat:"Useful Verbs"},
+  {de:"sagen",en:"to say",cat:"Useful Verbs"},
+  {de:"geben",en:"to give",cat:"Useful Verbs"},
+  {de:"nehmen",en:"to take",cat:"Useful Verbs"},
+  {de:"stellen",en:"to put, to place",cat:"Useful Verbs"},
+  {de:"bringen",en:"to bring",cat:"Useful Verbs"},
+  {de:"kriegen",en:"to get",cat:"Useful Verbs"},
+  {de:"zeigen",en:"to show, point",cat:"Useful Verbs"},
+  {de:"sprechen",en:"to speak, talk",cat:"Useful Verbs"},
+  {de:"bedeuten",en:"to mean",cat:"Useful Verbs"},
+  {de:"ver\u00e4ndern",en:"to change",cat:"Useful Verbs"},
+  {de:"versuchen",en:"to try",cat:"Useful Verbs"},
+  {de:"wollen",en:"to want (to)",cat:"Useful Verbs"},
+  {de:"k\u00f6nnen",en:"to be able to, can",cat:"Useful Verbs"},
+  {de:"hoffen (auf)",en:"to hope (for)",cat:"Useful Verbs"},
+  {de:"sich erinnern",en:"to remember",cat:"Useful Verbs"},
+  {de:"gehen um",en:"to be about",cat:"Useful Verbs"},
+  {de:"verdienen",en:"to deserve, to earn",cat:"Useful Verbs"},
+  {de:"scheinen",en:"to appear, shine",cat:"Useful Verbs"},
+  {de:"wissen",en:"to know",cat:"Useful Verbs"},
+  {de:"vergessen",en:"to forget",cat:"Useful Verbs"},
+  {de:"erinnern (an)",en:"to remind (of)",cat:"Useful Verbs"},
+  {de:"bemerken",en:"to notice",cat:"Useful Verbs"},
+  {de:"sich merken",en:"to remember",cat:"Useful Verbs"},
+  {de:"denken (an)",en:"to think (of)",cat:"Useful Verbs"},
+  {de:"bestehen (aus)",en:"to consist (of)",cat:"Useful Verbs"},
+  {de:"legen",en:"to lay, put",cat:"Useful Verbs"},
+  {de:"\u00fcberlegen",en:"to consider, think about",cat:"Useful Verbs"},
+  {de:"sich handeln um",en:"to be about",cat:"Useful Verbs"},
+  {de:"sich drehen um",en:"to be about, revolve around",cat:"Useful Verbs"},
+  {de:"entwickeln",en:"to develop",cat:"Useful Verbs"},
+  {de:"entstehen",en:"to be created",cat:"Useful Verbs"},
+  {de:"\u00e4ndern",en:"to change",cat:"Useful Verbs"},
+  {de:"\u00fcberzeugen",en:"to convince",cat:"Useful Verbs"},
+  {de:"annehmen",en:"to accept, assume",cat:"Useful Verbs"},
+  {de:"ermutigen",en:"to encourage",cat:"Useful Verbs"},
+  {de:"bitten um",en:"to ask for, request",cat:"Useful Verbs"},
+  {de:"rufen",en:"to call",cat:"Useful Verbs"},
+  {de:"beschlie\u00dfen",en:"to decide",cat:"Useful Verbs"},
+  {de:"erfahren",en:"to find out, experience",cat:"Useful Verbs"},
+  {de:"geh\u00f6ren",en:"to belong",cat:"Useful Verbs"},
+  {de:"reichen",en:"to reach, be enough",cat:"Useful Verbs"},
+  {de:"erwarten",en:"to expect",cat:"Useful Verbs"},
+  {de:"aufmachen",en:"to open",cat:"Useful Verbs"},
+  {de:"setzen",en:"to set, put",cat:"Useful Verbs"},
+
+  // SECTION 2: IDENTITY & RELATIONSHIPS
+  {de:"der Name",en:"name",cat:"Identity"},
+  {de:"der Geburtstag",en:"birthday",cat:"Identity"},
+  {de:"das Alter",en:"age",cat:"Identity"},
+  {de:"geboren",en:"born",cat:"Identity"},
+  {de:"der / die Deutsche",en:"the German (person)",cat:"Identity"},
+  {de:"die Deutschen",en:"the Germans",cat:"Identity"},
+  {de:"deutsch",en:"German",cat:"Identity"},
+  {de:"britisch",en:"British",cat:"Identity"},
+  {de:"Asien",en:"Asia",cat:"Identity"},
+  {de:"das Einzelkind",en:"only child",cat:"Identity"},
+  {de:"das Kind",en:"child",cat:"Identity"},
+  {de:"die Geschwister",en:"siblings",cat:"Identity"},
+  {de:"die Eltern",en:"parents",cat:"Identity"},
+
+  // Family and Friends
+  {de:"die Familie",en:"family",cat:"Family"},
+  {de:"die Mutter",en:"mother",cat:"Family"},
+  {de:"der Vater",en:"father",cat:"Family"},
+  {de:"der Bruder",en:"brother",cat:"Family"},
+  {de:"die Schwester",en:"sister",cat:"Family"},
+  {de:"die Gro\u00dfmutter",en:"grandmother",cat:"Family"},
+  {de:"der Gro\u00dfvater",en:"grandfather",cat:"Family"},
+  {de:"die Oma",en:"grandma",cat:"Family"},
+  {de:"der Opa",en:"grandpa",cat:"Family"},
+  {de:"die Cousine",en:"cousin (female)",cat:"Family"},
+  {de:"der Cousin",en:"cousin (male)",cat:"Family"},
+  {de:"der Sohn",en:"son",cat:"Family"},
+  {de:"die Tochter",en:"daughter",cat:"Family"},
+  {de:"das Tier",en:"animal, pet",cat:"Family"},
+  {de:"der Hund",en:"dog",cat:"Family"},
+  {de:"die Katze",en:"cat",cat:"Family"},
+  {de:"der Freund",en:"friend (male)",cat:"Family"},
+  {de:"die Freundin",en:"friend (female)",cat:"Family"},
+  {de:"der Typ",en:"guy",cat:"Family"},
+  {de:"die Jugendliche",en:"teenager",cat:"Family"},
+  {de:"der / die Erwachsene",en:"adult, grown-up",cat:"Family"},
+  {de:"folgen",en:"to follow",cat:"Family"},
+  {de:"lachen",en:"to laugh",cat:"Family"},
+  {de:"kennen",en:"to know (a person)",cat:"Family"},
+  {de:"kennenlernen",en:"to get to know",cat:"Family"},
+  {de:"heiraten",en:"to marry",cat:"Family"},
+  {de:"verstehen",en:"to understand",cat:"Family"},
+
+  // Appearances
+  {de:"das Aussehen",en:"appearance",cat:"Appearances"},
+  {de:"die Haare",en:"hair",cat:"Appearances"},
+  {de:"die Augen",en:"eyes",cat:"Appearances"},
+  {de:"gro\u00df",en:"big, tall",cat:"Appearances"},
+  {de:"klein",en:"small, short",cat:"Appearances"},
+  {de:"jung",en:"young",cat:"Appearances"},
+  {de:"alt",en:"old",cat:"Appearances"},
+  {de:"schlank",en:"slim",cat:"Appearances"},
+  {de:"dick",en:"fat, thick",cat:"Appearances"},
+  {de:"h\u00fcbsch",en:"pretty, cute",cat:"Appearances"},
+  {de:"blond",en:"blonde",cat:"Appearances"},
+  {de:"braun",en:"brown",cat:"Appearances"},
+  {de:"schwarz",en:"black",cat:"Appearances"},
+  {de:"die Brille",en:"glasses",cat:"Appearances"},
+
+  // Personalities
+  {de:"freundlich",en:"friendly",cat:"Personalities"},
+  {de:"nett",en:"nice",cat:"Personalities"},
+  {de:"lustig",en:"funny",cat:"Personalities"},
+  {de:"ruhig",en:"quiet, calm",cat:"Personalities"},
+  {de:"hilfsbereit",en:"helpful",cat:"Personalities"},
+  {de:"sportlich",en:"sporty",cat:"Personalities"},
+  {de:"negativ",en:"negative",cat:"Personalities"},
+  {de:"traurig",en:"sad",cat:"Personalities"},
+  {de:"b\u00f6se",en:"angry, naughty",cat:"Personalities"},
+  {de:"frech",en:"cheeky",cat:"Personalities"},
+  {de:"komisch",en:"funny, strange",cat:"Personalities"},
+  {de:"stark",en:"strong",cat:"Personalities"},
+  {de:"unabh\u00e4ngig",en:"independent",cat:"Personalities"},
+  {de:"geduldig",en:"patient",cat:"Personalities"},
+  {de:"\u00e4rgerlich",en:"annoying",cat:"Personalities"},
+  {de:"gern",en:"gladly",cat:"Personalities"},
+
+  // Relationships and Partnerships
+  {de:"die Beziehung",en:"relationship",cat:"Relationships"},
+  {de:"die Eigenschaften",en:"characteristics",cat:"Relationships"},
+  {de:"die Ehe",en:"marriage",cat:"Relationships"},
+  {de:"die Hochzeit",en:"wedding",cat:"Relationships"},
+  {de:"der Partner",en:"partner",cat:"Relationships"},
+  {de:"die Partnerin",en:"partner (female)",cat:"Relationships"},
+  {de:"das Paar",en:"couple",cat:"Relationships"},
+  {de:"die Liebe",en:"love",cat:"Relationships"},
+  {de:"das Gef\u00fchl",en:"feeling",cat:"Relationships"},
+  {de:"zusammen",en:"together",cat:"Relationships"},
+  {de:"allein",en:"alone",cat:"Relationships"},
+  {de:"lieben",en:"to love",cat:"Relationships"},
+  {de:"sich k\u00fcmmern um",en:"to care for",cat:"Relationships"},
+  {de:"sich verlieben",en:"to fall in love",cat:"Relationships"},
+  {de:"streiten",en:"to argue",cat:"Relationships"},
+  {de:"sich verstehen mit",en:"to get on well with",cat:"Relationships"},
+  {de:"der Mann",en:"husband, man",cat:"Relationships"},
+  {de:"die Frau",en:"wife, woman",cat:"Relationships"},
+  {de:"geschieden",en:"divorced",cat:"Relationships"},
+  {de:"vertrauen",en:"to trust",cat:"Relationships"},
+  {de:"st\u00f6ren",en:"to disturb, bother",cat:"Relationships"},
+  {de:"der Konflikt",en:"conflict, dispute",cat:"Relationships"},
+  {de:"gegenseitig",en:"mutual, each other",cat:"Relationships"},
+
+  // SECTION 3: HEALTHY LIVING
+  // Food
+  {de:"das Essen",en:"food, meal",cat:"Food"},
+  {de:"der Hunger",en:"hunger",cat:"Food"},
+  {de:"der Durst",en:"thirst",cat:"Food"},
+  {de:"das Brot",en:"bread",cat:"Food"},
+  {de:"der K\u00e4se",en:"cheese",cat:"Food"},
+  {de:"das Ei",en:"egg",cat:"Food"},
+  {de:"die Pommes",en:"chips, fries",cat:"Food"},
+  {de:"das Fleisch",en:"meat",cat:"Food"},
+  {de:"der Fisch",en:"fish",cat:"Food"},
+  {de:"der Zucker",en:"sugar",cat:"Food"},
+  {de:"das Eis",en:"ice cream",cat:"Food"},
+  {de:"das Obst",en:"fruit",cat:"Food"},
+  {de:"das Gem\u00fcse",en:"vegetables",cat:"Food"},
+  {de:"der Kuchen",en:"cake",cat:"Food"},
+  {de:"die Milch",en:"milk",cat:"Food"},
+  {de:"das Wasser",en:"water",cat:"Food"},
+  {de:"der Kaffee",en:"coffee",cat:"Food"},
+  {de:"der Tee",en:"tea",cat:"Food"},
+  {de:"der Saft",en:"juice",cat:"Food"},
+  {de:"das Bier",en:"beer",cat:"Food"},
+  {de:"kochen",en:"to cook",cat:"Food"},
+  {de:"essen",en:"to eat",cat:"Food"},
+  {de:"trinken",en:"to drink",cat:"Food"},
+  {de:"s\u00fc\u00df",en:"sweet",cat:"Food"},
+  {de:"lecker",en:"delicious",cat:"Food"},
+  {de:"schmecken",en:"to taste",cat:"Food"},
+  {de:"das Fr\u00fchst\u00fcck",en:"breakfast",cat:"Food"},
+  {de:"das Mittagessen",en:"lunch",cat:"Food"},
+  {de:"das Abendessen",en:"dinner",cat:"Food"},
+  {de:"das Restaurant",en:"restaurant",cat:"Food"},
+
+  // Healthy Living
+  {de:"die Gesundheit",en:"health",cat:"Healthy Living"},
+  {de:"gesund",en:"healthy",cat:"Healthy Living"},
+  {de:"das Leben",en:"life",cat:"Healthy Living"},
+  {de:"die Energie",en:"energy",cat:"Healthy Living"},
+  {de:"schlafen",en:"to sleep",cat:"Healthy Living"},
+  {de:"laufen",en:"to run",cat:"Healthy Living"},
+  {de:"abnehmen",en:"to lose weight",cat:"Healthy Living"},
+  {de:"zunehmen",en:"to gain weight",cat:"Healthy Living"},
+  {de:"die Bewegung",en:"movement, exercise",cat:"Healthy Living"},
+  {de:"der Sport",en:"sport",cat:"Healthy Living"},
+  {de:"das Fitness-Studio",en:"gym",cat:"Healthy Living"},
+  {de:"sich bewegen",en:"to move, exercise",cat:"Healthy Living"},
+  {de:"joggen",en:"to jog",cat:"Healthy Living"},
+  {de:"Sport treiben",en:"to do sport",cat:"Healthy Living"},
+  {de:"schwimmen",en:"to swim",cat:"Healthy Living"},
+  {de:"spazieren",en:"to go for a walk",cat:"Healthy Living"},
+  {de:"wandern",en:"to hike",cat:"Healthy Living"},
+  {de:"sich entspannen",en:"to relax",cat:"Healthy Living"},
+  {de:"aktiv",en:"active",cat:"Healthy Living"},
+  {de:"die Ern\u00e4hrung",en:"nutrition, diet",cat:"Healthy Living"},
+
+  // Unhealthy Living
+  {de:"ungesund",en:"unhealthy",cat:"Unhealthy Living"},
+  {de:"gef\u00e4hrlich",en:"dangerous, risky",cat:"Unhealthy Living"},
+  {de:"der Alkohol",en:"alcohol",cat:"Unhealthy Living"},
+  {de:"die Droge",en:"drug",cat:"Unhealthy Living"},
+  {de:"die Zigarette",en:"cigarette",cat:"Unhealthy Living"},
+  {de:"rauchen",en:"to smoke",cat:"Unhealthy Living"},
+  {de:"s\u00fcchtig (nach)",en:"addicted (to)",cat:"Unhealthy Living"},
+  {de:"m\u00fcde",en:"tired",cat:"Unhealthy Living"},
+  {de:"sich f\u00fchlen",en:"to feel",cat:"Unhealthy Living"},
+  {de:"das Gef\u00fchl",en:"feeling",cat:"Unhealthy Living"},
+
+  // Illnesses and Treatments
+  {de:"die Krankheit",en:"illness, disease",cat:"Health"},
+  {de:"die Schmerzen",en:"pain, aches",cat:"Health"},
+  {de:"krank",en:"ill, sick",cat:"Health"},
+  {de:"die Sorge",en:"worry",cat:"Health"},
+  {de:"der Arzt / die \u00c4rztin",en:"doctor",cat:"Health"},
+  {de:"das Krankenhaus",en:"hospital",cat:"Health"},
+  {de:"das Auge",en:"eye",cat:"Health"},
+  {de:"das Ohr",en:"ear",cat:"Health"},
+  {de:"der Kopf",en:"head",cat:"Health"},
+  {de:"der R\u00fccken",en:"back",cat:"Health"},
+  {de:"das Bein",en:"leg",cat:"Health"},
+  {de:"die Hand",en:"hand",cat:"Health"},
+  {de:"der Bauch",en:"stomach",cat:"Health"},
+  {de:"der Mund",en:"mouth",cat:"Health"},
+  {de:"weh tun",en:"to hurt",cat:"Health"},
+  {de:"sich verletzen",en:"to injure oneself",cat:"Health"},
+  {de:"leiden (unter)",en:"to suffer (from)",cat:"Health"},
+  {de:"heilen",en:"to heal",cat:"Health"},
+  {de:"retten",en:"to save, rescue",cat:"Health"},
+  {de:"sich verbessern",en:"to improve",cat:"Health"},
+  {de:"empfehlen",en:"to recommend",cat:"Health"},
+  {de:"der Schmerz",en:"pain",cat:"Health"},
+  {de:"der Unfall",en:"accident, crash",cat:"Health"},
+  {de:"der Kopfschmerz",en:"headache",cat:"Health"},
+  {de:"die Schulter",en:"shoulder",cat:"Health"},
+  {de:"das Knie",en:"knee",cat:"Health"},
+  {de:"die Haut",en:"skin",cat:"Health"},
+  {de:"die Nase",en:"nose",cat:"Health"},
+  {de:"der Zahn",en:"tooth",cat:"Health"},
+  {de:"der Doktor",en:"doctor",cat:"Health"},
+  {de:"der / die Patient(in)",en:"patient",cat:"Health"},
+
+  // SECTION 4: EDUCATION
+  {de:"das Fach",en:"subject",cat:"Education"},
+  {de:"das Lieblingsfach",en:"favourite subject",cat:"Education"},
+  {de:"Mathematik / Mathe",en:"maths",cat:"Education"},
+  {de:"Englisch",en:"English",cat:"Education"},
+  {de:"Deutsch",en:"German",cat:"Education"},
+  {de:"Franz\u00f6sisch",en:"French",cat:"Education"},
+  {de:"Spanisch",en:"Spanish",cat:"Education"},
+  {de:"die Naturwissenschaften",en:"sciences",cat:"Education"},
+  {de:"Physik",en:"physics",cat:"Education"},
+  {de:"Chemie",en:"chemistry",cat:"Education"},
+  {de:"Biologie",en:"biology",cat:"Education"},
+  {de:"Geschichte",en:"history",cat:"Education"},
+  {de:"Erdkunde",en:"geography",cat:"Education"},
+  {de:"Kunst",en:"art",cat:"Education"},
+  {de:"Musik",en:"music",cat:"Education"},
+  {de:"Informatik",en:"computer science, ICT",cat:"Education"},
+  {de:"das Theater",en:"drama",cat:"Education"},
+  {de:"die Schule",en:"school",cat:"Education"},
+  {de:"die Stunde",en:"lesson",cat:"Education"},
+  {de:"schwer",en:"difficult, heavy",cat:"Education"},
+  {de:"leicht",en:"easy, light",cat:"Education"},
+  {de:"stark",en:"strong",cat:"Education"},
+  {de:"die Ferien",en:"holidays, school break",cat:"Education"},
+  {de:"der / die Sch\u00fcler(in)",en:"pupil, student",cat:"Education"},
+  {de:"der / die Lehrer(in)",en:"teacher",cat:"Education"},
+  {de:"die Klasse",en:"class",cat:"Education"},
+  {de:"das Klassenzimmer",en:"classroom",cat:"Education"},
+  {de:"lernen",en:"to learn, study",cat:"Education"},
+  {de:"lesen",en:"to read",cat:"Education"},
+  {de:"schreiben",en:"to write",cat:"Education"},
+  {de:"\u00fcbersetzen",en:"to translate",cat:"Education"},
+  {de:"erkl\u00e4ren",en:"to explain",cat:"Education"},
+  {de:"wiederholen",en:"to repeat, revise",cat:"Education"},
+  {de:"die Hausaufgaben",en:"homework",cat:"Education"},
+  {de:"die Aufgabe",en:"assignment, exercise",cat:"Education"},
+  {de:"der Kurs",en:"course",cat:"Education"},
+  {de:"das Papier",en:"paper",cat:"Education"},
+  {de:"das Blatt",en:"sheet",cat:"Education"},
+  {de:"die Grundschule",en:"primary school",cat:"Education"},
+  {de:"das Gymnasium",en:"grammar school",cat:"Education"},
+  {de:"die Regel",en:"rule",cat:"Education"},
+  {de:"die Ausbildung",en:"training, education",cat:"Education"},
+  {de:"die \u00dcbung",en:"practice, exercise",cat:"Education"},
+  {de:"die Erkl\u00e4rung",en:"explanation",cat:"Education"},
+  {de:"der Satz",en:"sentence",cat:"Education"},
+  {de:"die Pause",en:"break, pause",cat:"Education"},
+  {de:"der Club",en:"club",cat:"Education"},
+  {de:"der Sportplatz",en:"sports pitch",cat:"Education"},
+  {de:"die Kantine",en:"canteen, cafeteria",cat:"Education"},
+  {de:"die Information",en:"information",cat:"Education"},
+  {de:"spielen",en:"to play",cat:"Education"},
+  {de:"das Ergebnis",en:"result, outcome",cat:"Education"},
+  {de:"der Versuch",en:"attempt, experiment",cat:"Education"},
+  {de:"pr\u00fcfen",en:"to examine, check",cat:"Education"},
+  {de:"untersuchen",en:"to examine, research",cat:"Education"},
+  {de:"bestehen",en:"to pass (an exam)",cat:"Education"},
+  {de:"der Druck",en:"pressure, stress",cat:"Education"},
+  {de:"die F\u00e4higkeit",en:"ability, capability",cat:"Education"},
+  {de:"die Kenntnis",en:"knowledge",cat:"Education"},
+  {de:"aufpassen",en:"to pay attention",cat:"Education"},
+  {de:"sich konzentrieren",en:"to concentrate",cat:"Education"},
+  {de:"die Diskussion",en:"discussion",cat:"Education"},
+  {de:"die Verantwortung",en:"responsibility",cat:"Education"},
+  {de:"die Entwicklung",en:"development",cat:"Education"},
+  {de:"der Austausch",en:"exchange",cat:"Education"},
+
+  // Future Study and Work
+  {de:"die Universit\u00e4t",en:"university",cat:"Future Study & Work"},
+  {de:"die Uni",en:"university (informal)",cat:"Future Study & Work"},
+  {de:"das Studium",en:"study, studies",cat:"Future Study & Work"},
+  {de:"der / die Student(in)",en:"student",cat:"Future Study & Work"},
+  {de:"studieren",en:"to study (at university)",cat:"Future Study & Work"},
+  {de:"die Note",en:"grade, mark",cat:"Future Study & Work"},
+  {de:"die Pr\u00fcfung",en:"exam",cat:"Future Study & Work"},
+  {de:"verlassen",en:"to leave",cat:"Future Study & Work"},
+  {de:"sich entscheiden (f\u00fcr)",en:"to decide (on)",cat:"Future Study & Work"},
+  {de:"w\u00e4hlen",en:"to choose, select",cat:"Future Study & Work"},
+  {de:"die Wahl",en:"choice, selection",cat:"Future Study & Work"},
+  {de:"die Chance",en:"chance, opportunity",cat:"Future Study & Work"},
+  {de:"die M\u00f6glichkeit",en:"possibility, opportunity",cat:"Future Study & Work"},
+  {de:"praktisch",en:"practical, useful",cat:"Future Study & Work"},
+  {de:"tr\u00e4umen",en:"to dream",cat:"Future Study & Work"},
+  {de:"die Oberstufe",en:"sixth form",cat:"Future Study & Work"},
+  {de:"das Abitur",en:"A levels (exam)",cat:"Future Study & Work"},
+
+  // Career Choices and Ambitions
+  {de:"der Beruf",en:"job, occupation",cat:"Careers"},
+  {de:"die Arbeit",en:"work, employment",cat:"Careers"},
+  {de:"der Job",en:"job",cat:"Careers"},
+  {de:"die Stelle",en:"position, role",cat:"Careers"},
+  {de:"die Karriere",en:"career",cat:"Careers"},
+  {de:"arbeitslos",en:"unemployed",cat:"Careers"},
+  {de:"der / die Verkäufer(in)",en:"shop assistant",cat:"Careers"},
+  {de:"der Arzt / die \u00c4rztin",en:"doctor",cat:"Careers"},
+  {de:"der / die Polizist(in)",en:"police officer",cat:"Careers"},
+  {de:"der / die Lehrer(in)",en:"teacher",cat:"Careers"},
+  {de:"der / die Journalist(in)",en:"journalist",cat:"Careers"},
+  {de:"der Abschluss",en:"certificate, diploma",cat:"Careers"},
+  {de:"die Lehre",en:"apprenticeship",cat:"Careers"},
+  {de:"die Gelegenheit",en:"opportunity",cat:"Careers"},
+  {de:"verdienen",en:"to earn",cat:"Careers"},
+
+  // SECTION 6: FREE-TIME ACTIVITIES
+  // Sport
+  {de:"der Sport",en:"sport",cat:"Sport"},
+  {de:"sportlich",en:"sporty, athletic",cat:"Sport"},
+  {de:"die Mannschaft",en:"team",cat:"Sport"},
+  {de:"das Training",en:"training",cat:"Sport"},
+  {de:"der Fu\u00dfball",en:"football, soccer",cat:"Sport"},
+  {de:"das Tennis",en:"tennis",cat:"Sport"},
+  {de:"der Basketball",en:"basketball",cat:"Sport"},
+  {de:"das Schwimmen",en:"swimming",cat:"Sport"},
+  {de:"das Fahrrad",en:"bicycle",cat:"Sport"},
+  {de:"Rad fahren",en:"to cycle",cat:"Sport"},
+  {de:"werfen",en:"to throw",cat:"Sport"},
+  {de:"spazieren",en:"to walk",cat:"Sport"},
+  {de:"tauchen",en:"to dive",cat:"Sport"},
+  {de:"springen",en:"to jump",cat:"Sport"},
+  {de:"klettern",en:"to climb",cat:"Sport"},
+
+  // Going Out
+  {de:"das Kino",en:"cinema",cat:"Going Out"},
+  {de:"das Konzert",en:"concert",cat:"Going Out"},
+  {de:"die Kosten",en:"costs",cat:"Going Out"},
+  {de:"kosten",en:"to cost",cat:"Going Out"},
+  {de:"kaufen",en:"to buy",cat:"Going Out"},
+  {de:"sich treffen",en:"to meet up",cat:"Going Out"},
+  {de:"das Museum",en:"museum",cat:"Going Out"},
+  {de:"das Restaurant",en:"restaurant",cat:"Going Out"},
+  {de:"das Gesch\u00e4ft",en:"shop, business",cat:"Going Out"},
+  {de:"der Besuch",en:"visit",cat:"Going Out"},
+  {de:"besuchen",en:"to visit",cat:"Going Out"},
+
+  // Art and Theatre
+  {de:"die Kunst",en:"art",cat:"Art & Culture"},
+  {de:"das Foto",en:"photo",cat:"Art & Culture"},
+  {de:"das Theater",en:"theatre",cat:"Art & Culture"},
+  {de:"das St\u00fcck",en:"piece, play",cat:"Art & Culture"},
+  {de:"die Kultur",en:"culture",cat:"Art & Culture"},
+
+  // Other Activities
+  {de:"die Freizeit",en:"free time",cat:"Free Time"},
+  {de:"das Hobby",en:"hobby",cat:"Free Time"},
+  {de:"die Veranstaltung",en:"event, performance",cat:"Free Time"},
+  {de:"der Roman",en:"novel",cat:"Free Time"},
+  {de:"das Buch",en:"book",cat:"Free Time"},
+  {de:"der Text",en:"text",cat:"Free Time"},
+  {de:"der Krimi",en:"thriller, detective story",cat:"Free Time"},
+  {de:"die Geschichte",en:"story, history",cat:"Free Time"},
+  {de:"der / die Autor(in)",en:"author, writer",cat:"Free Time"},
+  {de:"die Zeitung",en:"newspaper",cat:"Free Time"},
+  {de:"der Artikel",en:"article",cat:"Free Time"},
+  {de:"die Nachricht",en:"news, message",cat:"Free Time"},
+  {de:"das Videospiel",en:"video game",cat:"Free Time"},
+  {de:"der Computer",en:"computer",cat:"Free Time"},
+  {de:"der Spa\u00df",en:"fun, joke",cat:"Free Time"},
+  {de:"die Party",en:"party",cat:"Free Time"},
+  {de:"kochen",en:"to cook",cat:"Free Time"},
+  {de:"der Brief",en:"letter",cat:"Free Time"},
+  {de:"schreiben (an)",en:"to write (to)",cat:"Free Time"},
+  {de:"die Aktivit\u00e4t",en:"activity",cat:"Free Time"},
+  {de:"sich am\u00fcsieren",en:"to enjoy oneself",cat:"Free Time"},
+  {de:"sich unterhalten",en:"to chat, entertain",cat:"Free Time"},
+  {de:"sich entspannen",en:"to relax, chill out",cat:"Free Time"},
+  {de:"freiwillig",en:"voluntary",cat:"Free Time"},
+
+  // SECTION 7: CUSTOMS, FESTIVALS AND CELEBRATIONS
+  {de:"das Fest",en:"celebration, party",cat:"Celebrations"},
+  {de:"der Geburtstag",en:"birthday",cat:"Celebrations"},
+  {de:"Weihnachten",en:"Christmas",cat:"Celebrations"},
+  {de:"Ostern",en:"Easter",cat:"Celebrations"},
+  {de:"Silvester",en:"New Year's Eve",cat:"Celebrations"},
+  {de:"Herzlichen Gl\u00fcckwunsch",en:"Congratulations",cat:"Celebrations"},
+  {de:"das Geschenk",en:"present, gift",cat:"Celebrations"},
+  {de:"feiern",en:"to celebrate",cat:"Celebrations"},
+  {de:"die Tradition",en:"tradition",cat:"Celebrations"},
+  {de:"das Lied",en:"song",cat:"Celebrations"},
+  {de:"die Religion",en:"religion",cat:"Celebrations"},
+  {de:"die Kirche",en:"church",cat:"Celebrations"},
+  {de:"der Karneval",en:"carnival",cat:"Celebrations"},
+  {de:"das Feuerwerk",en:"fireworks",cat:"Celebrations"},
+  {de:"die Kerze",en:"candle",cat:"Celebrations"},
+
+  // SECTION 8: CELEBRITY CULTURE
+  {de:"der Star",en:"star, celebrity",cat:"Celebrity Culture"},
+  {de:"die Pers\u00f6nlichkeit",en:"personality",cat:"Celebrity Culture"},
+  {de:"ber\u00fchmt",en:"famous",cat:"Celebrity Culture"},
+  {de:"die Sendung",en:"programme, show",cat:"Celebrity Culture"},
+  {de:"das Fernsehen",en:"television",cat:"Celebrity Culture"},
+  {de:"die Gruppe",en:"group",cat:"Celebrity Culture"},
+  {de:"der / die S\u00e4nger(in)",en:"singer",cat:"Celebrity Culture"},
+  {de:"die Band",en:"band",cat:"Celebrity Culture"},
+  {de:"der Film",en:"film, movie",cat:"Celebrity Culture"},
+  {de:"die Rolle",en:"role",cat:"Celebrity Culture"},
+  {de:"der / die Schauspieler(in)",en:"actor/actress",cat:"Celebrity Culture"},
+  {de:"die Karriere",en:"career",cat:"Celebrity Culture"},
+  {de:"die Medien",en:"media",cat:"Celebrity Culture"},
+  {de:"die Zeitung",en:"newspaper",cat:"Celebrity Culture"},
+  {de:"das Interview",en:"interview",cat:"Celebrity Culture"},
+  {de:"das Bild",en:"picture, image",cat:"Celebrity Culture"},
+  {de:"der Erfolg",en:"success",cat:"Celebrity Culture"},
+  {de:"der Fan",en:"fan, supporter",cat:"Celebrity Culture"},
+  {de:"der Preis",en:"prize, award",cat:"Celebrity Culture"},
+  {de:"das Geld",en:"money, cash",cat:"Celebrity Culture"},
+  {de:"der Vorteil",en:"advantage, benefit",cat:"Celebrity Culture"},
+  {de:"der Nachteil",en:"disadvantage",cat:"Celebrity Culture"},
+  {de:"darstellen",en:"to depict, portray",cat:"Celebrity Culture"},
+  {de:"auftreten",en:"to appear, occur, perform",cat:"Celebrity Culture"},
+  {de:"das Publikum",en:"audience",cat:"Celebrity Culture"},
+  {de:"der / die Zuschauer(in)",en:"viewer, spectator",cat:"Celebrity Culture"},
+  {de:"beliebt",en:"popular",cat:"Celebrity Culture"},
+  {de:"die Wirklichkeit",en:"reality, truth",cat:"Celebrity Culture"},
+  {de:"die Rede",en:"speech",cat:"Celebrity Culture"},
+  {de:"berichten",en:"to report",cat:"Celebrity Culture"},
+  {de:"kritisieren",en:"to criticise",cat:"Celebrity Culture"},
+  {de:"die \u00d6ffentlichkeit",en:"public",cat:"Celebrity Culture"},
+
+  // SECTION 9: TRAVEL AND TOURISM
+  {de:"das Land",en:"country, state",cat:"Travel"},
+  {de:"die Welt",en:"world",cat:"Travel"},
+  {de:"Deutschland",en:"Germany",cat:"Travel"},
+  {de:"die Gegend",en:"area, region",cat:"Travel"},
+  {de:"die Richtung",en:"direction, way",cat:"Travel"},
+  {de:"die Schweiz",en:"Switzerland",cat:"Travel"},
+  {de:"die T\u00fcrkei",en:"Turkey",cat:"Travel"},
+  {de:"\u00d6sterreich",en:"Austria",cat:"Travel"},
+  {de:"Gro\u00dfbritannien",en:"Great Britain",cat:"Travel"},
+  {de:"England",en:"England",cat:"Travel"},
+  {de:"Frankreich",en:"France",cat:"Travel"},
+  {de:"Italien",en:"Italy",cat:"Travel"},
+  {de:"Spanien",en:"Spain",cat:"Travel"},
+  {de:"Griechenland",en:"Greece",cat:"Travel"},
+  {de:"Europa",en:"Europe",cat:"Travel"},
+  {de:"die EU",en:"EU",cat:"Travel"},
+  {de:"das Ausland",en:"abroad",cat:"Travel"},
+  {de:"der Urlaub",en:"holiday",cat:"Travel"},
+  {de:"die Reise",en:"journey, trip",cat:"Travel"},
+  {de:"reisen",en:"to travel",cat:"Travel"},
+  {de:"fahren",en:"to travel, drive",cat:"Travel"},
+  {de:"fliegen",en:"to fly",cat:"Travel"},
+  {de:"der Besuch",en:"visit",cat:"Travel"},
+  {de:"besuchen",en:"to visit",cat:"Travel"},
+  {de:"warm",en:"warm",cat:"Travel"},
+  {de:"kalt",en:"cold",cat:"Travel"},
+  {de:"hei\u00df",en:"hot",cat:"Travel"},
+  {de:"sonnig",en:"sunny",cat:"Travel"},
+  {de:"die Sonne",en:"sun",cat:"Travel"},
+  {de:"die Temperatur",en:"temperature",cat:"Travel"},
+  {de:"fremd",en:"foreign",cat:"Travel"},
+  {de:"der Kilometer",en:"kilometre",cat:"Travel"},
+  {de:"kommen",en:"to come",cat:"Travel"},
+  {de:"mitnehmen",en:"to take along",cat:"Travel"},
+  {de:"ankommen (in)",en:"to arrive (in)",cat:"Travel"},
+  {de:"zur\u00fcckkommen",en:"to return, come back",cat:"Travel"},
+  {de:"verlassen",en:"to leave",cat:"Travel"},
+  {de:"warten (auf)",en:"to wait (for)",cat:"Travel"},
+  {de:"p\u00fcnktlich",en:"punctual, on time",cat:"Travel"},
+  {de:"sp\u00e4t",en:"late",cat:"Travel"},
+  {de:"direkt",en:"direct, directly",cat:"Travel"},
+  {de:"unterwegs",en:"on the way",cat:"Travel"},
+  {de:"weg",en:"away, gone",cat:"Travel"},
+  {de:"zur\u00fcck",en:"back, return",cat:"Travel"},
+  {de:"weiter",en:"further",cat:"Travel"},
+  {de:"das Boot",en:"boat",cat:"Travel"},
+  {de:"der Flug",en:"flight",cat:"Travel"},
+  {de:"die U-Bahn",en:"underground, metro",cat:"Travel"},
+  {de:"die Stra\u00dfenbahn",en:"tram",cat:"Travel"},
+  {de:"die Linie",en:"line, route",cat:"Travel"},
+  {de:"der Ort",en:"place, location",cat:"Travel"},
+  {de:"das Geb\u00e4ude",en:"building",cat:"Travel"},
+  {de:"das Museum",en:"museum",cat:"Travel"},
+  {de:"der Markt",en:"market",cat:"Travel"},
+  {de:"der Strand",en:"beach",cat:"Travel"},
+  {de:"der See",en:"lake",cat:"Travel"},
+  {de:"das Caf\u00e9",en:"caf\u00e9",cat:"Travel"},
+  {de:"das Restaurant",en:"restaurant",cat:"Travel"},
+  {de:"historisch",en:"historic",cat:"Travel"},
+  {de:"ber\u00fchmt",en:"famous",cat:"Travel"},
+  {de:"bekannt",en:"well-known",cat:"Travel"},
+  {de:"der Plan",en:"plan",cat:"Travel"},
+  {de:"kulturell",en:"cultural",cat:"Travel"},
+  {de:"der / die Tourist(in)",en:"tourist",cat:"Travel"},
+  {de:"die K\u00fcche",en:"kitchen, cuisine",cat:"Travel"},
+
+  // SECTION 10: MEDIA AND TECHNOLOGY
+  {de:"das Netz",en:"net, network",cat:"Technology"},
+  {de:"die Verbindung",en:"connection, link",cat:"Technology"},
+  {de:"das Handy",en:"mobile phone",cat:"Technology"},
+  {de:"die Webseite",en:"website",cat:"Technology"},
+  {de:"die Werbung",en:"advertising",cat:"Technology"},
+  {de:"die Daten",en:"data",cat:"Technology"},
+  {de:"informieren",en:"to inform",cat:"Technology"},
+  {de:"die Studie",en:"study, survey",cat:"Technology"},
+  {de:"verboten",en:"forbidden, banned",cat:"Technology"},
+  {de:"die Seite",en:"page, side",cat:"Technology"},
+  {de:"soziale Medien",en:"social media",cat:"Technology"},
+  {de:"der Blog",en:"blog",cat:"Technology"},
+  {de:"der Einfluss",en:"influence",cat:"Technology"},
+  {de:"die Post",en:"mail, post",cat:"Technology"},
+  {de:"das Gespr\u00e4ch",en:"conversation",cat:"Technology"},
+  {de:"hochladen",en:"to upload",cat:"Technology"},
+  {de:"herunterladen",en:"to download",cat:"Technology"},
+  {de:"teilen",en:"to share",cat:"Technology"},
+  {de:"folgen",en:"to follow",cat:"Technology"},
+  {de:"das Risiko",en:"risk, danger",cat:"Technology"},
+  {de:"das Mobbing",en:"bullying",cat:"Technology"},
+  {de:"privat",en:"private, personal",cat:"Technology"},
+  {de:"das Gefahr",en:"danger",cat:"Technology"},
+  {de:"vorsichtig",en:"cautious, careful",cat:"Technology"},
+
+  // SECTION 11: WHERE PEOPLE LIVE - The Home
+  {de:"das Haus",en:"house",cat:"Home"},
+  {de:"die Wohnung",en:"apartment, flat",cat:"Home"},
+  {de:"das Zimmer",en:"room",cat:"Home"},
+  {de:"das Wohnzimmer",en:"living room",cat:"Home"},
+  {de:"das Schlafzimmer",en:"bedroom",cat:"Home"},
+  {de:"die K\u00fcche",en:"kitchen",cat:"Home"},
+  {de:"das Badezimmer",en:"bathroom",cat:"Home"},
+  {de:"der Garten",en:"garden",cat:"Home"},
+  {de:"das B\u00fcro",en:"office",cat:"Home"},
+  {de:"das Bad",en:"bath, bathroom",cat:"Home"},
+  {de:"das Bett",en:"bed",cat:"Home"},
+  {de:"der Tisch",en:"table",cat:"Home"},
+  {de:"der Stuhl",en:"chair",cat:"Home"},
+  {de:"gro\u00df",en:"big, large",cat:"Home"},
+  {de:"klein",en:"small",cat:"Home"},
+  {de:"gem\u00fctlich",en:"cosy, comfortable",cat:"Home"},
+  {de:"bequem",en:"comfortable",cat:"Home"},
+  {de:"sauber",en:"clean",cat:"Home"},
+  {de:"die Ordnung",en:"order, tidiness",cat:"Home"},
+  {de:"die Ruhe",en:"quiet, peace",cat:"Home"},
+
+  // The Local Area
+  {de:"das Dorf",en:"village",cat:"Local Area"},
+  {de:"die Stadt",en:"city, town",cat:"Local Area"},
+  {de:"die Region",en:"region",cat:"Local Area"},
+  {de:"die Gegend",en:"area, region",cat:"Local Area"},
+  {de:"die Stra\u00dfe",en:"street, road",cat:"Local Area"},
+  {de:"die Hauptstra\u00dfe",en:"main street",cat:"Local Area"},
+  {de:"die Umgebung",en:"surroundings",cat:"Local Area"},
+  {de:"das Zentrum",en:"centre",cat:"Local Area"},
+  {de:"die Mitte",en:"middle",cat:"Local Area"},
+  {de:"der Supermarkt",en:"supermarket",cat:"Local Area"},
+  {de:"das Krankenhaus",en:"hospital",cat:"Local Area"},
+  {de:"die Bahnhof",en:"station",cat:"Local Area"},
+  {de:"die Post",en:"post office",cat:"Local Area"},
+  {de:"die Bibliothek",en:"library",cat:"Local Area"},
+  {de:"die Br\u00fccke",en:"bridge",cat:"Local Area"},
+  {de:"der Platz",en:"square, place",cat:"Local Area"},
+  {de:"das Feld",en:"field",cat:"Local Area"},
+  {de:"der Park",en:"park",cat:"Local Area"},
+  {de:"die Kirche",en:"church",cat:"Local Area"},
+  {de:"die Synagoge",en:"synagogue",cat:"Local Area"},
+  {de:"die Moschee",en:"mosque",cat:"Local Area"},
+  {de:"der Tempel",en:"temple",cat:"Local Area"},
+  {de:"die Mauer",en:"wall",cat:"Local Area"},
+  {de:"der Markt",en:"market",cat:"Local Area"},
+
+  // Shopping
+  {de:"der Bereich",en:"area, region",cat:"Shopping"},
+  {de:"der / die B\u00fcrgermeister(in)",en:"mayor",cat:"Shopping"},
+  {de:"die Industrie",en:"industry",cat:"Shopping"},
+  {de:"das Volk",en:"people, nation",cat:"Shopping"},
+  {de:"einkaufen",en:"to shop",cat:"Shopping"},
+  {de:"das Gesch\u00e4ft",en:"shop, business",cat:"Shopping"},
+  {de:"die Kleidung",en:"clothing",cat:"Shopping"},
+  {de:"das T-Shirt",en:"T-shirt",cat:"Shopping"},
+  {de:"das Hemd",en:"shirt",cat:"Shopping"},
+  {de:"die Hose",en:"trousers",cat:"Shopping"},
+  {de:"der Rock",en:"skirt",cat:"Shopping"},
+  {de:"der Schuh",en:"shoe",cat:"Shopping"},
+  {de:"die Jacke",en:"jacket",cat:"Shopping"},
+  {de:"der Preis",en:"price",cat:"Shopping"},
+  {de:"teuer",en:"expensive",cat:"Shopping"},
+  {de:"billig",en:"cheap",cat:"Shopping"},
+  {de:"das Geld",en:"money",cat:"Shopping"},
+  {de:"bezahlen",en:"to pay",cat:"Shopping"},
+
+  // Directions and Weather
+  {de:"der Weg",en:"way, path",cat:"Directions & Weather"},
+  {de:"die Richtung",en:"direction, way",cat:"Directions & Weather"},
+  {de:"links",en:"left",cat:"Directions & Weather"},
+  {de:"rechts",en:"right",cat:"Directions & Weather"},
+  {de:"geradeaus",en:"straight ahead",cat:"Directions & Weather"},
+  {de:"nah(e)",en:"near, close",cat:"Directions & Weather"},
+  {de:"weit",en:"far",cat:"Directions & Weather"},
+  {de:"der Norden",en:"north",cat:"Directions & Weather"},
+  {de:"der S\u00fcden",en:"south",cat:"Directions & Weather"},
+  {de:"der Osten",en:"east",cat:"Directions & Weather"},
+  {de:"der Westen",en:"west",cat:"Directions & Weather"},
+  {de:"das Wetter",en:"weather",cat:"Directions & Weather"},
+  {de:"die Temperatur",en:"temperature",cat:"Directions & Weather"},
+  {de:"regnen",en:"to rain",cat:"Directions & Weather"},
+  {de:"es regnet",en:"it's raining",cat:"Directions & Weather"},
+  {de:"die Sonne",en:"sun",cat:"Directions & Weather"},
+  {de:"sonnig",en:"sunny",cat:"Directions & Weather"},
+  {de:"der Fr\u00fchling",en:"spring",cat:"Directions & Weather"},
+  {de:"der Sommer",en:"summer",cat:"Directions & Weather"},
+  {de:"der Herbst",en:"autumn",cat:"Directions & Weather"},
+  {de:"der Winter",en:"winter",cat:"Directions & Weather"},
+  {de:"der Schnee",en:"snow",cat:"Directions & Weather"},
+  {de:"der Himmel",en:"sky",cat:"Directions & Weather"},
+  {de:"der Wind",en:"wind",cat:"Directions & Weather"},
+  {de:"kalt",en:"cold",cat:"Directions & Weather"},
+  {de:"warm",en:"warm",cat:"Directions & Weather"},
+  {de:"hei\u00df",en:"hot",cat:"Directions & Weather"},
+  {de:"hell",en:"bright, light",cat:"Directions & Weather"},
+
+  // SECTION 12: ENVIRONMENT
+  {de:"die Pflanze",en:"plant",cat:"Environment"},
+  {de:"der Himmel",en:"sky",cat:"Environment"},
+  {de:"der Klimawandel",en:"climate change",cat:"Environment"},
+  {de:"die Ver\u00e4nderung",en:"change",cat:"Environment"},
+  {de:"der Zustand",en:"condition, state",cat:"Environment"},
+  {de:"die Folge",en:"consequence, result",cat:"Environment"},
+  {de:"das Ergebnis",en:"result, effect",cat:"Environment"},
+  {de:"die Ursache",en:"cause",cat:"Environment"},
+  {de:"das Feuer",en:"fire",cat:"Environment"},
+  {de:"wachsen",en:"to grow",cat:"Environment"},
+  {de:"warnen (vor)",en:"to warn (of/about)",cat:"Environment"},
+  {de:"verursachen",en:"to cause",cat:"Environment"},
+  {de:"der Schutz",en:"protection",cat:"Environment"},
+  {de:"sch\u00fctzen",en:"to protect",cat:"Environment"},
+  {de:"umweltfreundlich",en:"environmentally friendly",cat:"Environment"},
+  {de:"das Recycling",en:"recycling",cat:"Environment"},
+  {de:"recyceln",en:"to recycle",cat:"Environment"},
+  {de:"sammeln",en:"to collect, gather",cat:"Environment"},
+  {de:"\u00f6ffentlich",en:"public",cat:"Environment"},
+  {de:"der Verkehr",en:"traffic, transport",cat:"Environment"},
+  {de:"das Mittel",en:"means",cat:"Environment"},
+  {de:"das Ziel",en:"goal, aim",cat:"Environment"},
+  {de:"sauber",en:"clean",cat:"Environment"},
+  {de:"praktisch",en:"practical, useful",cat:"Environment"},
+  {de:"die L\u00f6sung",en:"solution, answer",cat:"Environment"},
+  {de:"l\u00f6sen",en:"to solve",cat:"Environment"},
+  {de:"die Verantwortung",en:"responsibility",cat:"Environment"},
+  {de:"erhalten",en:"to preserve, maintain",cat:"Environment"},
+  {de:"reduzieren",en:"to reduce, decrease",cat:"Environment"},
+  {de:"verbieten",en:"to prohibit, ban",cat:"Environment"},
+  {de:"trennen",en:"to separate",cat:"Environment"},
+  {de:"vermeiden",en:"to avoid",cat:"Environment"},
+  {de:"das Elektroauto",en:"electric car",cat:"Environment"},
+  {de:"vorsichtig",en:"cautious, careful",cat:"Environment"},
+  {de:"die Suche",en:"search",cat:"Environment"},
+  {de:"die Methode",en:"method, technique",cat:"Environment"},
+  {de:"die Gegenwart",en:"present",cat:"Environment"},
+  {de:"rein",en:"pure, clean",cat:"Environment"},
+  {de:"langfristig",en:"long-term",cat:"Environment"},
+  {de:"k\u00fcnftig",en:"future, from now on",cat:"Environment"},
+  {de:"das Gesetz",en:"law",cat:"Environment"},
+  {de:"gerecht",en:"just, fair",cat:"Environment"},
+  {de:"die Einf\u00fchrung",en:"introduction",cat:"Environment"},
+  {de:"gr\u00fcnden",en:"to found",cat:"Environment"},
+  {de:"die Gesellschaft",en:"society",cat:"Environment"},
+  {de:"die Bildung",en:"education",cat:"Environment"},
+  {de:"die Regierung",en:"government",cat:"Environment"},
+  {de:"der / die B\u00fcrger(in)",en:"citizen",cat:"Environment"},
+  {de:"der Fortschritt",en:"progress",cat:"Environment"},
+  {de:"die Organisation",en:"organisation",cat:"Environment"},
+  {de:"die Wirtschaft",en:"economy",cat:"Environment"},
+  {de:"die Arbeitslosigkeit",en:"unemployment",cat:"Environment"},
+
+  // SECTION 13-14: GRAMMAR WORDS
+  // Adjectives and Adverbs
+  {de:"mein",en:"my",cat:"Grammar"},
+  {de:"dein",en:"your (informal)",cat:"Grammar"},
+  {de:"sein",en:"his, its",cat:"Grammar"},
+  {de:"ihr",en:"her, their",cat:"Grammar"},
+  {de:"unser",en:"our",cat:"Grammar"},
+  {de:"euer",en:"your (plural)",cat:"Grammar"},
+  {de:"schon",en:"already, yet",cat:"Grammar"},
+  {de:"gern",en:"gladly",cat:"Grammar"},
+  {de:"nicht",en:"not",cat:"Grammar"},
+  {de:"selbst",en:"even, self",cat:"Grammar"},
+  {de:"so",en:"so, thus, such",cat:"Grammar"},
+  {de:"sehr",en:"very",cat:"Grammar"},
+  {de:"ganz",en:"quite, very, entirely",cat:"Grammar"},
+  {de:"etwas",en:"something, somewhat",cat:"Grammar"},
+  {de:"meistens",en:"mostly",cat:"Grammar"},
+  {de:"viel",en:"much, a lot",cat:"Grammar"},
+  {de:"wenig",en:"little, few",cat:"Grammar"},
+  {de:"leider",en:"unfortunately",cat:"Grammar"},
+  {de:"wenigstens",en:"at least, minimum",cat:"Grammar"},
+  {de:"au\u00dferdem",en:"besides, furthermore",cat:"Grammar"},
+  {de:"ebenfalls",en:"likewise, also",cat:"Grammar"},
+  {de:"jedenfalls",en:"in any case, too",cat:"Grammar"},
+  {de:"allerdings",en:"certainly, indeed",cat:"Grammar"},
+  {de:"\u00fcberhaupt",en:"at all, anyway",cat:"Grammar"},
+  {de:"unbedingt",en:"absolutely",cat:"Grammar"},
+  {de:"stattdessen",en:"instead",cat:"Grammar"},
+  {de:"gl\u00fccklicherweise",en:"fortunately, luckily",cat:"Grammar"},
+  {de:"bisher",en:"until now, yet, so far",cat:"Grammar"},
+  {de:"erst",en:"only, not until",cat:"Grammar"},
+  {de:"eher",en:"rather, earlier",cat:"Grammar"},
+  {de:"zun\u00e4chst",en:"for the time being",cat:"Grammar"},
+  {de:"seitdem",en:"since, at first",cat:"Grammar"},
+  {de:"vorher",en:"past, then",cat:"Grammar"},
+  {de:"nun",en:"now",cat:"Grammar"},
+  {de:"bereits",en:"already",cat:"Grammar"},
+  {de:"vorher",en:"earlier, previously",cat:"Grammar"},
+  {de:"dazu",en:"in addition, furthermore",cat:"Grammar"},
+  {de:"zwar",en:"admittedly, to be precise",cat:"Grammar"},
+  {de:"etwa",en:"about, approximately",cat:"Grammar"},
+  {de:"oben",en:"above, up",cat:"Grammar"},
+  {de:"kaum",en:"hardly",cat:"Grammar"},
+  {de:"sogar",en:"even, in fact, actually",cat:"Grammar"},
+  {de:"sowohl",en:"partly, partially",cat:"Grammar"},
+  {de:"doch",en:"however, but",cat:"Grammar"},
+  {de:"sonst",en:"otherwise, else",cat:"Grammar"},
+  {de:"\u00fcbrigens",en:"by the way",cat:"Grammar"},
+  {de:"her",en:"from, ago",cat:"Grammar"},
+  {de:"hin",en:"there",cat:"Grammar"},
+
+  // Comparative
+  {de:"als",en:"than",cat:"Comparisons"},
+  {de:"so ... wie",en:"as ... as",cat:"Comparisons"},
+  {de:"genauso ... wie",en:"just as ... as",cat:"Comparisons"},
+  {de:"mehr",en:"more",cat:"Comparisons"},
+  {de:"besser",en:"better",cat:"Comparisons"},
+  {de:"h\u00f6her",en:"higher, taller",cat:"Comparisons"},
+  {de:"lieber",en:"more gladly, prefer",cat:"Comparisons"},
+  {de:"am besten",en:"(the) best",cat:"Comparisons"},
+  {de:"am meisten",en:"(the) most",cat:"Comparisons"},
+  {de:"am liebsten",en:"most preferably",cat:"Comparisons"},
+  {de:"der beste",en:"the best",cat:"Comparisons"},
+  {de:"der n\u00e4chste",en:"the next, nearest",cat:"Comparisons"},
+
+  // Conjunctions
+  {de:"und",en:"and",cat:"Conjunctions"},
+  {de:"aber",en:"but",cat:"Conjunctions"},
+  {de:"oder",en:"or",cat:"Conjunctions"},
+  {de:"denn",en:"because",cat:"Conjunctions"},
+  {de:"weil",en:"because",cat:"Conjunctions"},
+  {de:"dass",en:"that",cat:"Conjunctions"},
+  {de:"wenn",en:"when, if",cat:"Conjunctions"},
+  {de:"als",en:"when (past)",cat:"Conjunctions"},
+  {de:"ob",en:"whether, if",cat:"Conjunctions"},
+  {de:"obwohl",en:"although",cat:"Conjunctions"},
+  {de:"w\u00e4hrend",en:"while, during",cat:"Conjunctions"},
+  {de:"bevor",en:"before",cat:"Conjunctions"},
+  {de:"nachdem",en:"after",cat:"Conjunctions"},
+  {de:"seit",en:"since",cat:"Conjunctions"},
+  {de:"damit",en:"so that",cat:"Conjunctions"},
+  {de:"sondern",en:"but rather",cat:"Conjunctions"},
+  {de:"trotzdem",en:"nevertheless",cat:"Conjunctions"},
+  {de:"jedoch",en:"however",cat:"Conjunctions"},
+  {de:"entweder ... oder",en:"either ... or",cat:"Conjunctions"},
+  {de:"weder ... noch",en:"neither ... nor",cat:"Conjunctions"},
+  {de:"sowohl ... als auch",en:"both ... and",cat:"Conjunctions"},
+
+  // Prepositions
+  {de:"in",en:"in, into",cat:"Prepositions"},
+  {de:"an",en:"at, on",cat:"Prepositions"},
+  {de:"auf",en:"on, onto",cat:"Prepositions"},
+  {de:"mit",en:"with",cat:"Prepositions"},
+  {de:"von",en:"from, of",cat:"Prepositions"},
+  {de:"zu",en:"to",cat:"Prepositions"},
+  {de:"nach",en:"after, to",cat:"Prepositions"},
+  {de:"bei",en:"at, near",cat:"Prepositions"},
+  {de:"seit",en:"since, for",cat:"Prepositions"},
+  {de:"aus",en:"from, out of",cat:"Prepositions"},
+  {de:"gegen\u00fcber",en:"opposite",cat:"Prepositions"},
+  {de:"f\u00fcr",en:"for",cat:"Prepositions"},
+  {de:"gegen",en:"against",cat:"Prepositions"},
+  {de:"durch",en:"through",cat:"Prepositions"},
+  {de:"ohne",en:"without",cat:"Prepositions"},
+  {de:"um",en:"around, at",cat:"Prepositions"},
+  {de:"\u00fcber",en:"over, about",cat:"Prepositions"},
+  {de:"unter",en:"under, among",cat:"Prepositions"},
+  {de:"vor",en:"before, in front of",cat:"Prepositions"},
+  {de:"hinter",en:"behind",cat:"Prepositions"},
+  {de:"neben",en:"next to, beside",cat:"Prepositions"},
+  {de:"zwischen",en:"between",cat:"Prepositions"},
+  {de:"statt",en:"instead of",cat:"Prepositions"},
+  {de:"w\u00e4hrend",en:"during",cat:"Prepositions"},
+  {de:"wegen",en:"because of",cat:"Prepositions"},
+  {de:"trotz",en:"despite, in spite of",cat:"Prepositions"},
+];
+
+// ============================================================
+// APP STATE
+// ============================================================
+const EXAM_DATE = new Date('2026-05-07'); // Approximate GCSE date
+const MASTERY_THRESHOLD = 3; // correct 3 times = mastered
+
+let state = loadState();
+let sessionCorrect = 0, sessionWrong = 0, sessionStreak = 0;
+let currentWord = null, currentDirection = 'de-en';
+let quizMode = 'mixed';
+let selectedCategories = new Set();
+let waitingForNext = false;
+
+function defaultState() {
+  return {
+    wordStats: {}, // key: "german|english" -> {correct, wrong, lastSeen}
+    dailyScores: {}, // key: "YYYY-MM-DD" -> {correct, wrong}
+    bestStreak: 0,
+    totalCorrect: 0,
+    totalWrong: 0,
+    startDate: new Date().toISOString().slice(0,10)
+  };
+}
+
+function loadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem('german-gcse-state'));
+    return s || defaultState();
+  } catch { return defaultState(); }
+}
+
+function saveState() {
+  localStorage.setItem('german-gcse-state', JSON.stringify(state));
+}
+
+function getWordKey(word) {
+  return word.de + '|' + word.en;
+}
+
+function getWordStat(word) {
+  const key = getWordKey(word);
+  if (!state.wordStats[key]) state.wordStats[key] = {correct:0, wrong:0, lastSeen:null};
+  return state.wordStats[key];
+}
+
+function getTodayKey() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function getDailyScore() {
+  const key = getTodayKey();
+  if (!state.dailyScores[key]) state.dailyScores[key] = {correct:0, wrong:0};
+  return state.dailyScores[key];
+}
+
+// ============================================================
+// QUIZ LOGIC
+// ============================================================
+function getCategories() {
+  return [...new Set(VOCAB.map(w => w.cat))].sort();
+}
+
+function initCategoryFilters() {
+  const container = document.getElementById('cat-filters');
+  const cats = getCategories();
+  container.innerHTML = `<button class="cat-btn active" onclick="toggleCategory('all')">All</button>` +
+    cats.map(c => `<button class="cat-btn" data-cat="${c}" onclick="toggleCategory('${c.replace(/'/g,"\\'")}')">${c}</button>`).join('');
+}
+
+function toggleCategory(cat) {
+  if (cat === 'all') {
+    selectedCategories.clear();
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.cat-btn').classList.add('active');
+  } else {
+    document.querySelector('.cat-btn').classList.remove('active'); // remove "All"
+    if (selectedCategories.has(cat)) {
+      selectedCategories.delete(cat);
+      document.querySelector(`[data-cat="${cat}"]`)?.classList.remove('active');
+    } else {
+      selectedCategories.add(cat);
+      document.querySelector(`[data-cat="${cat}"]`)?.classList.add('active');
+    }
+    if (selectedCategories.size === 0) {
+      document.querySelector('.cat-btn').classList.add('active');
+    }
+  }
+  nextWord();
+}
+
+function getFilteredVocab() {
+  let pool = VOCAB;
+  if (selectedCategories.size > 0) {
+    pool = pool.filter(w => selectedCategories.has(w.cat));
+  }
+  if (quizMode === 'struggles') {
+    pool = pool.filter(w => {
+      const s = getWordStat(w);
+      return s.wrong >= 2;
+    });
+  }
+  return pool;
+}
+
+function nextWord() {
+  waitingForNext = false;
+  const pool = getFilteredVocab();
+  if (pool.length === 0) {
+    document.getElementById('quiz-word').textContent = 'No words available';
+    document.getElementById('quiz-category').textContent = quizMode === 'struggles' ? 'No struggle words!' : 'Select a category';
+    return;
+  }
+
+  // Weighted random: prioritize words with more wrongs and less seen
+  const weighted = pool.map(w => {
+    const s = getWordStat(w);
+    const wrongWeight = Math.max(1, s.wrong * 2 + 1);
+    const correctPenalty = Math.max(0.2, 1 - s.correct * 0.15);
+    return { word: w, weight: wrongWeight * correctPenalty };
+  });
+  const totalWeight = weighted.reduce((s, w) => s + w.weight, 0);
+  let rand = Math.random() * totalWeight;
+  let chosen = weighted[0].word;
+  for (const w of weighted) {
+    rand -= w.weight;
+    if (rand <= 0) { chosen = w.word; break; }
+  }
+
+  currentWord = chosen;
+
+  // Determine direction
+  if (quizMode === 'de-en') currentDirection = 'de-en';
+  else if (quizMode === 'en-de') currentDirection = 'en-de';
+  else currentDirection = Math.random() < 0.5 ? 'de-en' : 'en-de';
+
+  // Update UI
+  const dirLabel = currentDirection === 'de-en' ? 'German \u2192 English' : 'English \u2192 German';
+  document.getElementById('quiz-direction').textContent = dirLabel;
+  document.getElementById('quiz-category').textContent = currentWord.cat;
+  document.getElementById('quiz-word').textContent = currentDirection === 'de-en' ? currentWord.de : currentWord.en;
+
+  const input = document.getElementById('quiz-input');
+  input.value = '';
+  input.className = 'quiz-input';
+  input.disabled = false;
+  input.focus();
+
+  document.getElementById('quiz-feedback').className = 'quiz-feedback hidden';
+  document.getElementById('btn-submit').textContent = 'Check Answer';
+  document.getElementById('btn-submit').className = 'quiz-btn btn-primary';
+  document.getElementById('btn-submit').onclick = submitAnswer;
+}
+
+function normalizeAnswer(str) {
+  return str.toLowerCase().trim()
+    .replace(/[.,!?;:'"()\/\-]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\u00e4/g, 'ae').replace(/\u00f6/g, 'oe').replace(/\u00fc/g, 'ue').replace(/\u00df/g, 'ss')
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
+}
+
+function checkAnswer(userAnswer, correctAnswer) {
+  const normUser = normalizeAnswer(userAnswer);
+  const normCorrect = normalizeAnswer(correctAnswer);
+
+  if (normUser === normCorrect) return true;
+
+  // Check against multiple answers (separated by comma)
+  const parts = correctAnswer.split(',').map(s => normalizeAnswer(s.trim()));
+  if (parts.some(p => p === normUser)) return true;
+
+  // Check against alternatives separated by /
+  const slashParts = correctAnswer.split('/').map(s => normalizeAnswer(s.trim()));
+  if (slashParts.some(p => p === normUser)) return true;
+
+  // Check if user typed the first meaning (before comma or bracket)
+  const firstMeaning = normalizeAnswer(correctAnswer.replace(/[,(].*/, '').trim());
+  if (normUser === firstMeaning) return true;
+
+  // Handle "to ..." verbs - accept without "to"
+  if (correctAnswer.startsWith('to ') && normUser === normalizeAnswer(correctAnswer.slice(3))) return true;
+
+  // Accept without articles (der/die/das, the, a)
+  const withoutArticle = normCorrect.replace(/^(der |die |das |the |a |an )/, '');
+  if (normUser === withoutArticle) return true;
+  const userWithoutArticle = normUser.replace(/^(der |die |das |the |a |an )/, '');
+  if (userWithoutArticle === withoutArticle) return true;
+
+  return false;
+}
+
+function submitAnswer() {
+  if (waitingForNext) { nextWord(); return; }
+  if (!currentWord) return;
+
+  const input = document.getElementById('quiz-input');
+  const userAnswer = input.value.trim();
+  if (!userAnswer) return;
+
+  const correctAnswer = currentDirection === 'de-en' ? currentWord.en : currentWord.de;
+  const isCorrect = checkAnswer(userAnswer, correctAnswer);
+  const stat = getWordStat(currentWord);
+  const daily = getDailyScore();
+  const feedback = document.getElementById('quiz-feedback');
+
+  if (isCorrect) {
+    stat.correct++;
+    state.totalCorrect++;
+    daily.correct++;
+    sessionCorrect++;
+    sessionStreak++;
+    if (sessionStreak > state.bestStreak) state.bestStreak = sessionStreak;
+
+    input.className = 'quiz-input correct';
+    feedback.className = 'quiz-feedback feedback-correct';
+    feedback.textContent = 'Correct! \u2714';
+  } else {
+    stat.wrong++;
+    state.totalWrong++;
+    daily.wrong++;
+    sessionWrong++;
+    sessionStreak = 0;
+
+    input.className = 'quiz-input wrong';
+    feedback.className = 'quiz-feedback feedback-wrong';
+    feedback.textContent = `Wrong. The answer is: ${correctAnswer}`;
+  }
+
+  stat.lastSeen = new Date().toISOString();
+  saveState();
+  updateSessionScore();
+
+  input.disabled = true;
+  document.getElementById('btn-submit').textContent = 'Next Word \u2192';
+  document.getElementById('btn-submit').className = 'quiz-btn btn-success';
+  document.getElementById('btn-submit').onclick = nextWord;
+  waitingForNext = true;
+}
+
+function skipWord() {
+  if (currentWord) {
+    const stat = getWordStat(currentWord);
+    stat.wrong++;
+    state.totalWrong++;
+    const daily = getDailyScore();
+    daily.wrong++;
+    sessionWrong++;
+    sessionStreak = 0;
+    stat.lastSeen = new Date().toISOString();
+    saveState();
+    updateSessionScore();
+  }
+  nextWord();
+}
+
+function setQuizMode(mode) {
+  quizMode = mode;
+  document.querySelectorAll('.mode-toggle button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  nextWord();
+}
+
+function practiceStruggles() {
+  showPage('quiz');
+  quizMode = 'struggles';
+  document.querySelectorAll('.mode-toggle button').forEach(b => b.classList.remove('active'));
+  document.querySelector('.mode-toggle button:last-child').classList.add('active');
+  nextWord();
+}
+
+function updateSessionScore() {
+  document.getElementById('session-correct').textContent = sessionCorrect;
+  document.getElementById('session-wrong').textContent = sessionWrong;
+  document.getElementById('session-streak').textContent = sessionStreak;
+}
+
+// ============================================================
+// PROGRESS PAGE
+// ============================================================
+function updateProgress() {
+  // Days left
+  const now = new Date();
+  const diff = Math.max(0, Math.ceil((EXAM_DATE - now) / (1000*60*60*24)));
+  document.getElementById('days-left').textContent = diff;
+
+  // Stats
+  document.getElementById('stat-total-answered').textContent = state.totalCorrect + state.totalWrong;
+  const total = state.totalCorrect + state.totalWrong;
+  const acc = total > 0 ? Math.round(state.totalCorrect / total * 100) : 0;
+  document.getElementById('stat-accuracy').textContent = acc + '%';
+  document.getElementById('stat-best-streak').textContent = state.bestStreak;
+
+  // Mastered words
+  let mastered = 0;
+  VOCAB.forEach(w => {
+    const s = getWordStat(w);
+    if (s.correct >= MASTERY_THRESHOLD) mastered++;
+  });
+  document.getElementById('stat-words-mastered').textContent = mastered;
+  document.getElementById('mastered-count').textContent = mastered + ' mastered';
+  document.getElementById('mastered-total').textContent = 'of ' + VOCAB.length + ' words';
+  const pct = Math.round(mastered / VOCAB.length * 100);
+  document.getElementById('mastered-bar').style.width = pct + '%';
+
+  // Category breakdown
+  const catDiv = document.getElementById('category-breakdown');
+  const cats = getCategories();
+  catDiv.innerHTML = cats.map(cat => {
+    const catWords = VOCAB.filter(w => w.cat === cat);
+    const catMastered = catWords.filter(w => getWordStat(w).correct >= MASTERY_THRESHOLD).length;
+    const catPct = Math.round(catMastered / catWords.length * 100);
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:2px">
+        <span>${cat}</span><span>${catMastered}/${catWords.length}</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill blue" style="width:${catPct}%"></div></div>
+    </div>`;
+  }).join('');
+
+  // Heatmap (last 40 days)
+  const heatmap = document.getElementById('heatmap');
+  let days = [];
+  for (let i = 39; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0,10);
+    const score = state.dailyScores[key];
+    const count = score ? score.correct + score.wrong : 0;
+    let level = 0;
+    if (count > 0) level = 1;
+    if (count >= 10) level = 2;
+    if (count >= 30) level = 3;
+    if (count >= 50) level = 4;
+    days.push(`<div class="heatmap-day level-${level}" title="${key}: ${count} answers"></div>`);
+  }
+  heatmap.innerHTML = days.join('');
+
+  // Today's score
+  const daily = getDailyScore();
+  const todayTotal = daily.correct + daily.wrong;
+  const todayAcc = todayTotal > 0 ? Math.round(daily.correct / todayTotal * 100) : 0;
+  document.getElementById('today-score-details').innerHTML = `
+    <div style="display:flex;justify-content:space-around;text-align:center">
+      <div><div style="font-size:1.5rem;font-weight:700;color:var(--success)">${daily.correct}</div><div style="font-size:0.8rem;color:var(--muted)">Correct</div></div>
+      <div><div style="font-size:1.5rem;font-weight:700;color:var(--danger)">${daily.wrong}</div><div style="font-size:0.8rem;color:var(--muted)">Wrong</div></div>
+      <div><div style="font-size:1.5rem;font-weight:700;color:var(--primary)">${todayAcc}%</div><div style="font-size:0.8rem;color:var(--muted)">Accuracy</div></div>
+    </div>`;
+}
+
+// ============================================================
+// STRUGGLES PAGE
+// ============================================================
+function updateStruggles() {
+  const list = document.getElementById('struggle-list');
+  const struggles = VOCAB.filter(w => {
+    const s = getWordStat(w);
+    return s.wrong >= 2;
+  }).sort((a, b) => getWordStat(b).wrong - getWordStat(a).wrong);
+
+  if (struggles.length === 0) {
+    list.innerHTML = '';
+    document.getElementById('no-struggles').classList.remove('hidden');
+    return;
+  }
+
+  document.getElementById('no-struggles').classList.add('hidden');
+  list.innerHTML = struggles.map(w => {
+    const s = getWordStat(w);
+    return `<li class="struggle-item">
+      <div>
+        <span class="struggle-german">${w.de}</span>
+        <span class="struggle-english"> \u2192 ${w.en}</span>
+      </div>
+      <span class="struggle-count">${s.wrong} wrong</span>
+    </li>`;
+  }).join('');
+}
+
+// ============================================================
+// WORDS PAGE
+// ============================================================
+function populateWords() {
+  document.getElementById('word-count').textContent = VOCAB.length;
+  filterWords();
+}
+
+function filterWords() {
+  const q = document.getElementById('word-search').value.toLowerCase();
+  const filtered = VOCAB.filter(w =>
+    w.de.toLowerCase().includes(q) || w.en.toLowerCase().includes(q) || w.cat.toLowerCase().includes(q)
+  );
+  const tbody = document.getElementById('word-table-body');
+  tbody.innerHTML = filtered.map(w => {
+    const s = getWordStat(w);
+    const mastered = s.correct >= MASTERY_THRESHOLD;
+    return `<tr style="${mastered ? 'background:#e6f4ea' : ''}">
+      <td><strong>${w.de}</strong></td><td>${w.en}</td><td style="font-size:0.8rem;color:var(--muted)">${w.cat}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showPage(page) {
+  ['quiz','progress','struggles','words'].forEach(p => {
+    document.getElementById('page-' + p).classList.toggle('hidden', p !== page);
+  });
+  document.querySelectorAll('.nav-links button').forEach(b => b.classList.remove('active'));
+  event?.target?.classList.add('active');
+
+  if (page === 'progress') updateProgress();
+  if (page === 'struggles') updateStruggles();
+  if (page === 'words') populateWords();
+}
+
+function resetProgress() {
+  if (confirm('Are you sure you want to reset ALL progress? This cannot be undone.')) {
+    state = defaultState();
+    saveState();
+    sessionCorrect = 0;
+    sessionWrong = 0;
+    sessionStreak = 0;
+    updateSessionScore();
+    updateProgress();
+    nextWord();
+  }
+}
+
+// ============================================================
+// KEYBOARD SHORTCUTS
+// ============================================================
+document.getElementById('quiz-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    if (waitingForNext) nextWord();
+    else submitAnswer();
+  }
+});
+
+// ============================================================
+// INIT
+// ============================================================
+initCategoryFilters();
+nextWord();
+updateSessionScore();
+</script>
+
+</body>
+</html>
