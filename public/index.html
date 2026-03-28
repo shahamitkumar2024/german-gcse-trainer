@@ -176,6 +176,18 @@
 
 <!-- QUIZ PAGE -->
 <div id="page-quiz" class="container">
+  <div class="card" id="daily-target-card" style="background:linear-gradient(135deg,#1a73e8,#6c5ce7);color:white;text-align:center;padding:16px">
+    <div style="display:flex;justify-content:space-around;align-items:center">
+      <div><div style="font-size:2rem;font-weight:800" id="target-words-per-day">—</div><div style="font-size:0.75rem;opacity:0.9">words/day needed</div></div>
+      <div><div style="font-size:2rem;font-weight:800" id="target-days-left">35</div><div style="font-size:0.75rem;opacity:0.9">days left</div></div>
+      <div><div style="font-size:2rem;font-weight:800" id="target-mastered">0</div><div style="font-size:0.75rem;opacity:0.9">of <span id="target-needed">956</span> needed</div></div>
+    </div>
+    <div style="background:rgba(255,255,255,0.2);border-radius:6px;height:8px;margin-top:12px;overflow:hidden">
+      <div id="target-progress-bar" style="background:white;height:100%;width:0%;border-radius:6px;transition:width 0.5s"></div>
+    </div>
+    <div style="font-size:0.75rem;opacity:0.8;margin-top:6px" id="target-message">Master 98% of words in 35 days</div>
+  </div>
+
   <div class="score-bar">
     <div class="score-item score-correct"><div class="num" id="session-correct">0</div><div class="label">Correct</div></div>
     <div class="score-item score-wrong"><div class="num" id="session-wrong">0</div><div class="label">Wrong</div></div>
@@ -210,8 +222,8 @@
 <!-- PROGRESS PAGE -->
 <div id="page-progress" class="container hidden">
   <div class="countdown">
-    <div class="days-left" id="days-left">40</div>
-    <div class="days-label">days until GCSE exam</div>
+    <div class="days-left" id="days-left">35</div>
+    <div class="days-label">days to master 98% of words</div>
   </div>
 
   <div class="stats-grid">
@@ -236,7 +248,7 @@
   </div>
 
   <div class="card">
-    <h3>Daily Activity (last 40 days)</h3>
+    <h3>Daily Activity (last 35 days)</h3>
     <div class="heatmap" id="heatmap"></div>
     <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--muted);margin-top:6px">
       <span>Less</span>
@@ -1360,7 +1372,16 @@ const VOCAB = [
 // ============================================================
 const EXAM_DATE = new Date('2026-05-07'); // Approximate GCSE date
 const MASTERY_THRESHOLD = 3; // correct 3 times = mastered
+const TARGET_MASTERY_PCT = 0.98; // 98% target
+const TARGET_WORDS = Math.ceil(VOCAB.length * TARGET_MASTERY_PCT);
+const TOTAL_STUDY_DAYS = 35;
 const API_BASE = window.location.origin;
+
+// Input sanitization
+function sanitizeInput(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/[<>\"\'&;\\\/\`]/g, '').replace(/\s+/g, ' ').trim().slice(0, 200);
+}
 
 let state = null;
 let syncCode = localStorage.getItem('german-gcse-sync-code') || '';
@@ -1509,7 +1530,8 @@ function checkLogin() {
 }
 
 function loginUser() {
-  const name = document.getElementById('login-name').value.trim().toLowerCase();
+  const raw = document.getElementById('login-name').value;
+  const name = sanitizeInput(raw).toLowerCase();
   if (!name) return;
   syncCode = name.replace(/[^a-z0-9]/g, '');
   if (!syncCode) return;
@@ -1746,7 +1768,7 @@ function submitAnswer() {
   if (!currentWord) return;
 
   const input = document.getElementById('quiz-input');
-  const userAnswer = input.value.trim();
+  const userAnswer = sanitizeInput(input.value);
   if (!userAnswer) return;
 
   const correctAnswer = currentDirection === 'de-en' ? currentWord.en : currentWord.de;
@@ -1824,6 +1846,39 @@ function updateSessionScore() {
   document.getElementById('session-correct').textContent = sessionCorrect;
   document.getElementById('session-wrong').textContent = sessionWrong;
   document.getElementById('session-streak').textContent = sessionStreak;
+  updateDailyTarget();
+}
+
+function updateDailyTarget() {
+  if (!state) return;
+  const now = new Date();
+  const daysLeft = Math.max(0, Math.ceil((EXAM_DATE - now) / (1000 * 60 * 60 * 24)));
+  const effectiveDays = Math.min(daysLeft, TOTAL_STUDY_DAYS);
+
+  let mastered = 0;
+  VOCAB.forEach(w => { if (getWordStat(w).correct >= MASTERY_THRESHOLD) mastered++; });
+
+  const wordsNeeded = Math.max(0, TARGET_WORDS - mastered);
+  const wordsPerDay = effectiveDays > 0 ? Math.ceil(wordsNeeded / effectiveDays) : wordsNeeded;
+  const progressPct = Math.min(100, Math.round(mastered / TARGET_WORDS * 100));
+
+  document.getElementById('target-words-per-day').textContent = wordsPerDay;
+  document.getElementById('target-days-left').textContent = effectiveDays;
+  document.getElementById('target-mastered').textContent = mastered;
+  document.getElementById('target-needed').textContent = TARGET_WORDS;
+  document.getElementById('target-progress-bar').style.width = progressPct + '%';
+
+  let msg;
+  if (mastered >= TARGET_WORDS) {
+    msg = 'Target reached! Keep revising to stay sharp!';
+  } else if (wordsPerDay <= 20) {
+    msg = 'On track! Keep it up!';
+  } else if (wordsPerDay <= 40) {
+    msg = 'Need to pick up pace. Practice daily!';
+  } else {
+    msg = 'Behind schedule. Intensive practice needed!';
+  }
+  document.getElementById('target-message').textContent = msg;
 }
 
 // ============================================================
@@ -1832,7 +1887,7 @@ function updateSessionScore() {
 function updateProgress() {
   // Days left
   const now = new Date();
-  const diff = Math.max(0, Math.ceil((EXAM_DATE - now) / (1000*60*60*24)));
+  const diff = Math.min(TOTAL_STUDY_DAYS, Math.max(0, Math.ceil((EXAM_DATE - now) / (1000*60*60*24))));
   document.getElementById('days-left').textContent = diff;
 
   // Stats
@@ -1869,10 +1924,10 @@ function updateProgress() {
     </div>`;
   }).join('');
 
-  // Heatmap (last 40 days)
+  // Heatmap (last 35 days)
   const heatmap = document.getElementById('heatmap');
   let days = [];
-  for (let i = 39; i >= 0; i--) {
+  for (let i = TOTAL_STUDY_DAYS - 1; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const key = d.toISOString().slice(0,10);
@@ -2026,7 +2081,7 @@ function populateWords() {
 }
 
 function filterWords() {
-  const q = document.getElementById('word-search').value.toLowerCase();
+  const q = sanitizeInput(document.getElementById('word-search').value).toLowerCase();
   const filtered = VOCAB.filter(w =>
     w.de.toLowerCase().includes(q) || w.en.toLowerCase().includes(q) || w.cat.toLowerCase().includes(q)
   );

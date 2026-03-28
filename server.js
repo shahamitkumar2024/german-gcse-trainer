@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const path = require('path');
+const nodemailer = require('nodemailer');
+const cron = require('node-cron');
 
 const app = express();
 app.use(cors());
@@ -13,7 +15,32 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Initialize table
+const TOTAL_WORDS = 975;
+const TARGET_MASTERY = 0.98; // 98%
+const TARGET_WORDS = Math.ceil(TOTAL_WORDS * TARGET_MASTERY); // 956 words
+const EXAM_DATE = new Date('2026-05-07');
+const TOTAL_DAYS = 35;
+
+// ============================================================
+// Input sanitization
+// ============================================================
+function sanitize(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/[<>\"\'&;\\\/\`]/g, '') // strip dangerous chars
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200); // max length
+}
+
+function sanitizeSyncCode(str) {
+  if (typeof str !== 'string') return '';
+  return str.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 30);
+}
+
+// ============================================================
+// Database
+// ============================================================
 async function initDB() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS progress (
@@ -26,10 +53,15 @@ async function initDB() {
 }
 initDB().catch(console.error);
 
+// ============================================================
+// API Routes
+// ============================================================
+
 // Get progress
 app.get('/api/progress/:code', async (req, res) => {
   try {
-    const code = req.params.code.toLowerCase().trim();
+    const code = sanitizeSyncCode(req.params.code);
+    if (!code) return res.status(400).json({ error: 'Invalid code' });
     const { rows } = await pool.query(
       'SELECT data, updated_at FROM progress WHERE sync_code = $1',
       [code]
@@ -48,8 +80,11 @@ app.get('/api/progress/:code', async (req, res) => {
 // Save progress
 app.put('/api/progress/:code', async (req, res) => {
   try {
-    const code = req.params.code.toLowerCase().trim();
+    const code = sanitizeSyncCode(req.params.code);
+    if (!code) return res.status(400).json({ error: 'Invalid code' });
     const data = req.body;
+    // Validate data structure
+    if (!data || typeof data !== 'object') return res.status(400).json({ error: 'Invalid data' });
     await pool.query(
       `INSERT INTO progress (sync_code, data, updated_at)
        VALUES ($1, $2, NOW())
@@ -61,6 +96,165 @@ app.put('/api/progress/:code', async (req, res) => {
   } catch (err) {
     console.error('PUT error:', err);
     res.status(500).json({ error: 'Failed to save progress' });
+  }
+});
+
+// ============================================================
+// Email Report
+// ============================================================
+const transporter = process.env.EMAIL_USER ? nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  }
+}) : null;
+
+async function sendDailyReport() {
+  if (!transporter || !process.env.EMAIL_TO) {
+    console.log('Email not configured, skipping report');
+    return;
+  }
+
+  try {
+    const { rows } = await pool.query('SELECT sync_code, data, updated_at FROM progress ORDER BY updated_at DESC');
+
+    if (rows.length === 0) {
+      console.log('No users to report on');
+      return;
+    }
+
+    const now = new Date();
+    const daysLeft = Math.max(0, Math.ceil((EXAM_DATE - now) / (1000 * 60 * 60 * 24)));
+    const today = now.toISOString().slice(0, 10);
+
+    let html = `
+      <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto">
+        <div style="background:linear-gradient(135deg,#1a73e8,#6c5ce7);color:white;padding:24px;border-radius:12px 12px 0 0">
+          <h1 style="margin:0;font-size:24px">German GCSE Daily Report</h1>
+          <p style="margin:8px 0 0;opacity:0.9">${now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} | ${daysLeft} days until exam</p>
+        </div>
+        <div style="background:#f8f9fa;padding:20px;border-radius:0 0 12px 12px">
+    `;
+
+    for (const row of rows) {
+      const data = row.data;
+      const userName = row.sync_code;
+      const lastActive = new Date(row.updated_at).toLocaleDateString('en-GB');
+
+      // Calculate stats
+      const totalCorrect = data.totalCorrect || 0;
+      const totalWrong = data.totalWrong || 0;
+      const totalAttempted = totalCorrect + totalWrong;
+      const accuracy = totalAttempted > 0 ? Math.round(totalCorrect / totalAttempted * 100) : 0;
+      const bestStreak = data.bestStreak || 0;
+
+      // Count mastered, struggles, unseen
+      let mastered = 0, struggles = 0, unseen = 0, weak = 0;
+      const wordStats = data.wordStats || {};
+      const totalTracked = Object.keys(wordStats).length;
+
+      for (const key of Object.keys(wordStats)) {
+        const s = wordStats[key];
+        if (s.correct >= 3) mastered++;
+        else if (s.wrong >= 2) struggles++;
+        else weak++;
+      }
+      unseen = TOTAL_WORDS - totalTracked;
+
+      // Today's score
+      const todayScore = (data.dailyScores || {})[today] || { correct: 0, wrong: 0 };
+      const todayTotal = todayScore.correct + todayScore.wrong;
+
+      // Daily target calculation
+      const wordsNeeded = TARGET_WORDS - mastered;
+      const daysRemaining = Math.max(1, daysLeft);
+      const wordsPerDay = Math.ceil(wordsNeeded / daysRemaining);
+      const masteryPct = Math.round(mastered / TOTAL_WORDS * 100);
+
+      // Progress color
+      const progressColor = masteryPct >= 80 ? '#34a853' : masteryPct >= 50 ? '#fbbc04' : '#ea4335';
+
+      html += `
+        <div style="background:white;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.1)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h2 style="margin:0;color:#1a73e8;font-size:20px">${userName.charAt(0).toUpperCase() + userName.slice(1)}</h2>
+            <span style="color:#666;font-size:13px">Last active: ${lastActive}</span>
+          </div>
+
+          <div style="background:#f1f3f4;border-radius:8px;height:12px;margin-bottom:12px;overflow:hidden">
+            <div style="background:${progressColor};height:100%;width:${masteryPct}%;border-radius:8px;transition:width 0.5s"></div>
+          </div>
+          <p style="margin:0 0 16px;font-size:13px;color:#666">${masteryPct}% mastery (${mastered}/${TOTAL_WORDS} words) — needs ${wordsPerDay} words/day to hit 98%</p>
+
+          <table style="width:100%;border-collapse:collapse;font-size:14px">
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid #eee"><strong>Today</strong></td>
+              <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${todayScore.correct} correct, ${todayScore.wrong} wrong (${todayTotal} total)</td>
+            </tr>
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid #eee"><strong>All Time</strong></td>
+              <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${totalAttempted} attempted, ${accuracy}% accuracy</td>
+            </tr>
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid #eee"><strong>Words Mastered</strong></td>
+              <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;color:#34a853"><strong>${mastered}</strong></td>
+            </tr>
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid #eee"><strong>Struggle Words</strong></td>
+              <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;color:#ea4335"><strong>${struggles}</strong></td>
+            </tr>
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid #eee"><strong>Weak Words</strong></td>
+              <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;color:#fbbc04"><strong>${weak}</strong></td>
+            </tr>
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid #eee"><strong>Unseen Words</strong></td>
+              <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;color:#1a73e8"><strong>${unseen}</strong></td>
+            </tr>
+            <tr>
+              <td style="padding:8px"><strong>Best Streak</strong></td>
+              <td style="padding:8px;text-align:right">${bestStreak}</td>
+            </tr>
+          </table>
+        </div>
+      `;
+    }
+
+    html += `
+        <p style="text-align:center;color:#999;font-size:12px;margin-top:16px">
+          German GCSE Trainer — Auto-generated daily report
+        </p>
+        </div>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: `"German GCSE Trainer" <${process.env.EMAIL_USER}>`,
+      to: process.env.EMAIL_TO,
+      subject: `German GCSE Progress Report — ${daysLeft} days left`,
+      html: html
+    });
+
+    console.log('Daily report email sent successfully');
+  } catch (err) {
+    console.error('Email send error:', err);
+  }
+}
+
+// Schedule daily email at 8pm UK time (20:00)
+cron.schedule('0 20 * * *', () => {
+  console.log('Running daily email report...');
+  sendDailyReport();
+}, { timezone: 'Europe/London' });
+
+// Manual trigger endpoint (for testing)
+app.post('/api/send-report', async (req, res) => {
+  try {
+    await sendDailyReport();
+    res.json({ ok: true, message: 'Report sent' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to send report' });
   }
 });
 
