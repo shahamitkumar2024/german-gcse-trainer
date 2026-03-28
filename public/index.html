@@ -1600,6 +1600,16 @@ function getFilteredVocab() {
   return pool;
 }
 
+function weightedPick(items) {
+  const total = items.reduce((s, i) => s + i.weight, 0);
+  let r = Math.random() * total;
+  for (const item of items) {
+    r -= item.weight;
+    if (r <= 0) return item.word;
+  }
+  return items[items.length - 1].word;
+}
+
 function nextWord() {
   waitingForNext = false;
   const pool = getFilteredVocab();
@@ -1609,19 +1619,42 @@ function nextWord() {
     return;
   }
 
-  // Weighted random: prioritize words with more wrongs and less seen
-  const weighted = pool.map(w => {
+  // Smart selection: 50% struggles, 30% unseen, 20% review
+  // Bucket words into categories
+  const struggles = []; // wrong 2+ times
+  const unseen = [];    // never attempted
+  const weak = [];      // attempted but not mastered (correct < 3)
+  const mastered = [];  // correct 3+ times
+
+  for (const w of pool) {
     const s = getWordStat(w);
-    const wrongWeight = Math.max(1, s.wrong * 2 + 1);
-    const correctPenalty = Math.max(0.2, 1 - s.correct * 0.15);
-    return { word: w, weight: wrongWeight * correctPenalty };
-  });
-  const totalWeight = weighted.reduce((s, w) => s + w.weight, 0);
-  let rand = Math.random() * totalWeight;
-  let chosen = weighted[0].word;
-  for (const w of weighted) {
-    rand -= w.weight;
-    if (rand <= 0) { chosen = w.word; break; }
+    const attempts = s.correct + s.wrong;
+    if (s.wrong >= 2) struggles.push(w);
+    else if (attempts === 0) unseen.push(w);
+    else if (s.correct < MASTERY_THRESHOLD) weak.push(w);
+    else mastered.push(w);
+  }
+
+  // Pick a bucket based on weighted probability
+  let chosen;
+  const roll = Math.random();
+  if (struggles.length > 0 && roll < 0.50) {
+    // 50% chance: pick a struggle word (weighted by wrong count)
+    const weighted = struggles.map(w => ({ word: w, weight: getWordStat(w).wrong }));
+    chosen = weightedPick(weighted);
+  } else if (unseen.length > 0 && roll < 0.80) {
+    // 30% chance: pick an unseen word (random)
+    chosen = unseen[Math.floor(Math.random() * unseen.length)];
+  } else if (weak.length > 0) {
+    // Pick a weak word for review
+    chosen = weak[Math.floor(Math.random() * weak.length)];
+  } else if (unseen.length > 0) {
+    chosen = unseen[Math.floor(Math.random() * unseen.length)];
+  } else if (struggles.length > 0) {
+    chosen = struggles[Math.floor(Math.random() * struggles.length)];
+  } else {
+    // All mastered - review random mastered words
+    chosen = mastered[Math.floor(Math.random() * mastered.length)];
   }
 
   currentWord = chosen;
