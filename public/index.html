@@ -132,13 +132,39 @@
 
   .reset-btn { background: var(--danger); color: white; border: none; padding: 12px 24px; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 600; margin-top: 12px; }
   .practice-btn { background: var(--warning); color: #333; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+
+  /* Login Modal */
+  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal { background: white; border-radius: 20px; padding: 32px; max-width: 400px; width: 100%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+  .modal h2 { font-size: 1.5rem; margin-bottom: 8px; }
+  .modal p { color: var(--muted); font-size: 0.9rem; margin-bottom: 20px; }
+  .modal input { width: 100%; padding: 14px 16px; font-size: 1.1rem; border: 2px solid var(--border); border-radius: 12px; outline: none; text-align: center; margin-bottom: 12px; }
+  .modal input:focus { border-color: var(--primary); }
+  .modal button { width: 100%; padding: 14px; font-size: 1.1rem; font-weight: 600; border: none; border-radius: 12px; cursor: pointer; background: var(--primary); color: white; }
+
+  /* Sync indicator */
+  .sync-badge { font-size: 0.7rem; padding: 3px 8px; border-radius: 10px; background: rgba(255,255,255,0.2); margin-left: 8px; }
+  .sync-badge.syncing { animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .user-badge { font-size: 0.75rem; background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 8px; cursor: pointer; }
 </style>
 </head>
 <body>
 
+<!-- LOGIN MODAL -->
+<div class="modal-overlay" id="login-modal">
+  <div class="modal">
+    <h2>German GCSE Trainer</h2>
+    <p>Enter your name to save and sync progress across devices</p>
+    <input type="text" id="login-name" placeholder="Enter your name..." autocomplete="off">
+    <button onclick="loginUser()">Start Learning</button>
+  </div>
+</div>
+
 <div class="nav">
-  <h1>German GCSE Trainer</h1>
+  <h1>German GCSE Trainer <span class="sync-badge" id="sync-badge"></span></h1>
   <div class="nav-links">
+    <span class="user-badge" id="user-badge" onclick="logoutUser()" title="Click to switch user"></span>
     <button class="active" onclick="showPage('quiz')">Quiz</button>
     <button onclick="showPage('progress')">Progress</button>
     <button onclick="showPage('struggles')">Struggles</button>
@@ -1329,13 +1355,17 @@ const VOCAB = [
 // ============================================================
 const EXAM_DATE = new Date('2026-05-07'); // Approximate GCSE date
 const MASTERY_THRESHOLD = 3; // correct 3 times = mastered
+const API_BASE = window.location.origin;
 
-let state = loadState();
+let state = null;
+let syncCode = localStorage.getItem('german-gcse-sync-code') || '';
 let sessionCorrect = 0, sessionWrong = 0, sessionStreak = 0;
 let currentWord = null, currentDirection = 'de-en';
 let quizMode = 'mixed';
 let selectedCategories = new Set();
 let waitingForNext = false;
+let syncTimer = null;
+let needsSync = false;
 
 function defaultState() {
   return {
@@ -1357,6 +1387,148 @@ function loadState() {
 
 function saveState() {
   localStorage.setItem('german-gcse-state', JSON.stringify(state));
+  scheduleSyncToCloud();
+}
+
+// ============================================================
+// CLOUD SYNC
+// ============================================================
+function showSyncStatus(text) {
+  const badge = document.getElementById('sync-badge');
+  badge.textContent = text;
+  badge.classList.toggle('syncing', text === 'syncing...');
+}
+
+async function syncToCloud() {
+  if (!syncCode) return;
+  try {
+    showSyncStatus('syncing...');
+    const resp = await fetch(`${API_BASE}/api/progress/${encodeURIComponent(syncCode)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state)
+    });
+    if (resp.ok) {
+      showSyncStatus('synced');
+      needsSync = false;
+    } else {
+      showSyncStatus('sync error');
+    }
+  } catch (e) {
+    showSyncStatus('offline');
+    console.error('Sync error:', e);
+  }
+}
+
+function scheduleSyncToCloud() {
+  needsSync = true;
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncToCloud, 2000); // debounce: sync 2s after last change
+}
+
+async function loadFromCloud() {
+  if (!syncCode) return;
+  try {
+    showSyncStatus('loading...');
+    const resp = await fetch(`${API_BASE}/api/progress/${encodeURIComponent(syncCode)}`);
+    const result = await resp.json();
+    if (result && result.data) {
+      // Merge cloud data with local - cloud wins for higher counts
+      const cloud = result.data;
+      const local = state;
+      state = mergeStates(local, cloud);
+      localStorage.setItem('german-gcse-state', JSON.stringify(state));
+      showSyncStatus('synced');
+    } else {
+      // No cloud data yet, push local data up
+      showSyncStatus('new');
+      syncToCloud();
+    }
+  } catch (e) {
+    showSyncStatus('offline');
+    console.error('Cloud load error:', e);
+  }
+}
+
+function mergeStates(local, cloud) {
+  const merged = { ...defaultState() };
+  merged.bestStreak = Math.max(local.bestStreak || 0, cloud.bestStreak || 0);
+  merged.totalCorrect = Math.max(local.totalCorrect || 0, cloud.totalCorrect || 0);
+  merged.totalWrong = Math.max(local.totalWrong || 0, cloud.totalWrong || 0);
+  merged.startDate = local.startDate || cloud.startDate || new Date().toISOString().slice(0,10);
+
+  // Merge word stats - take highest counts
+  const allKeys = new Set([...Object.keys(local.wordStats || {}), ...Object.keys(cloud.wordStats || {})]);
+  for (const key of allKeys) {
+    const l = (local.wordStats || {})[key] || {correct:0, wrong:0, lastSeen:null};
+    const c = (cloud.wordStats || {})[key] || {correct:0, wrong:0, lastSeen:null};
+    merged.wordStats[key] = {
+      correct: Math.max(l.correct, c.correct),
+      wrong: Math.max(l.wrong, c.wrong),
+      lastSeen: (l.lastSeen && c.lastSeen) ? (l.lastSeen > c.lastSeen ? l.lastSeen : c.lastSeen) : (l.lastSeen || c.lastSeen)
+    };
+  }
+
+  // Merge daily scores - take highest
+  const allDays = new Set([...Object.keys(local.dailyScores || {}), ...Object.keys(cloud.dailyScores || {})]);
+  for (const day of allDays) {
+    const l = (local.dailyScores || {})[day] || {correct:0, wrong:0};
+    const c = (cloud.dailyScores || {})[day] || {correct:0, wrong:0};
+    merged.dailyScores[day] = {
+      correct: Math.max(l.correct, c.correct),
+      wrong: Math.max(l.wrong, c.wrong)
+    };
+  }
+
+  return merged;
+}
+
+// ============================================================
+// LOGIN / USER
+// ============================================================
+function checkLogin() {
+  if (syncCode) {
+    document.getElementById('login-modal').style.display = 'none';
+    document.getElementById('user-badge').textContent = syncCode;
+    state = loadState();
+    loadFromCloud();
+    initApp();
+  } else {
+    document.getElementById('login-modal').style.display = 'flex';
+    // Allow Enter key in login
+    document.getElementById('login-name').addEventListener('keydown', e => {
+      if (e.key === 'Enter') loginUser();
+    });
+    document.getElementById('login-name').focus();
+  }
+}
+
+function loginUser() {
+  const name = document.getElementById('login-name').value.trim().toLowerCase();
+  if (!name) return;
+  syncCode = name.replace(/[^a-z0-9]/g, '');
+  if (!syncCode) return;
+  localStorage.setItem('german-gcse-sync-code', syncCode);
+  document.getElementById('login-modal').style.display = 'none';
+  document.getElementById('user-badge').textContent = syncCode;
+  state = loadState();
+  loadFromCloud();
+  initApp();
+}
+
+function logoutUser() {
+  if (confirm('Switch user? Your progress is saved.')) {
+    // Sync current state before switching
+    if (needsSync) syncToCloud();
+    syncCode = '';
+    localStorage.removeItem('german-gcse-sync-code');
+    localStorage.removeItem('german-gcse-state');
+    state = defaultState();
+    sessionCorrect = 0; sessionWrong = 0; sessionStreak = 0;
+    document.getElementById('login-modal').style.display = 'flex';
+    document.getElementById('login-name').value = '';
+    document.getElementById('login-name').focus();
+  }
 }
 
 function getWordKey(word) {
@@ -1477,34 +1649,42 @@ function nextWord() {
   document.getElementById('btn-submit').onclick = submitAnswer;
 }
 
-function normalizeAnswer(str) {
-  return str.toLowerCase().trim()
+// Two normalization modes:
+// 'full' replaces umlauts with digraphs: ä→ae, ö→oe, ü→ue, ß→ss
+// 'simple' strips umlauts to base letters: ä→a, ö→o, ü→u, ß→ss
+function normalizeAnswer(str, mode = 'full') {
+  let s = str.toLowerCase().trim()
     .replace(/[.,!?;:'"()\/\-]/g, '')
-    .replace(/\s+/g, ' ')
-    .replace(/\u00e4/g, 'ae').replace(/\u00f6/g, 'oe').replace(/\u00fc/g, 'ue').replace(/\u00df/g, 'ss')
-    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
+    .replace(/\s+/g, ' ');
+  if (mode === 'full') {
+    s = s.replace(/[äÄ]/g, 'ae').replace(/[öÖ]/g, 'oe').replace(/[üÜ]/g, 'ue').replace(/[ß]/g, 'ss');
+  } else {
+    // Simple mode: strip to base letter (for English keyboard tolerance)
+    s = s.replace(/[äÄ]/g, 'a').replace(/[öÖ]/g, 'o').replace(/[üÜ]/g, 'u').replace(/[ß]/g, 'ss');
+  }
+  return s;
 }
 
-function checkAnswer(userAnswer, correctAnswer) {
-  const normUser = normalizeAnswer(userAnswer);
-  const normCorrect = normalizeAnswer(correctAnswer);
+function matchesAny(userAnswer, correctAnswer, normFn) {
+  const normUser = normFn(userAnswer);
+  const normCorrect = normFn(correctAnswer);
 
   if (normUser === normCorrect) return true;
 
   // Check against multiple answers (separated by comma)
-  const parts = correctAnswer.split(',').map(s => normalizeAnswer(s.trim()));
+  const parts = correctAnswer.split(',').map(s => normFn(s.trim()));
   if (parts.some(p => p === normUser)) return true;
 
   // Check against alternatives separated by /
-  const slashParts = correctAnswer.split('/').map(s => normalizeAnswer(s.trim()));
+  const slashParts = correctAnswer.split('/').map(s => normFn(s.trim()));
   if (slashParts.some(p => p === normUser)) return true;
 
   // Check if user typed the first meaning (before comma or bracket)
-  const firstMeaning = normalizeAnswer(correctAnswer.replace(/[,(].*/, '').trim());
+  const firstMeaning = normFn(correctAnswer.replace(/[,(].*/, '').trim());
   if (normUser === firstMeaning) return true;
 
   // Handle "to ..." verbs - accept without "to"
-  if (correctAnswer.startsWith('to ') && normUser === normalizeAnswer(correctAnswer.slice(3))) return true;
+  if (correctAnswer.startsWith('to ') && normUser === normFn(correctAnswer.slice(3))) return true;
 
   // Accept without articles (der/die/das, the, a)
   const withoutArticle = normCorrect.replace(/^(der |die |das |the |a |an )/, '');
@@ -1512,6 +1692,14 @@ function checkAnswer(userAnswer, correctAnswer) {
   const userWithoutArticle = normUser.replace(/^(der |die |das |the |a |an )/, '');
   if (userWithoutArticle === withoutArticle) return true;
 
+  return false;
+}
+
+function checkAnswer(userAnswer, correctAnswer) {
+  // Try exact match with full umlaut→digraph normalization (ae/oe/ue)
+  if (matchesAny(userAnswer, correctAnswer, s => normalizeAnswer(s, 'full'))) return true;
+  // Also accept simple base-letter match (a/o/u) for English keyboards
+  if (matchesAny(userAnswer, correctAnswer, s => normalizeAnswer(s, 'simple'))) return true;
   return false;
 }
 
@@ -1766,9 +1954,15 @@ document.getElementById('quiz-input').addEventListener('keydown', function(e) {
 // ============================================================
 // INIT
 // ============================================================
-initCategoryFilters();
-nextWord();
-updateSessionScore();
+function initApp() {
+  if (!state) state = loadState();
+  initCategoryFilters();
+  nextWord();
+  updateSessionScore();
+}
+
+// Start with login check
+checkLogin();
 </script>
 
 </body>
