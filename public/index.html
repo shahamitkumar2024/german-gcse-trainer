@@ -2511,8 +2511,12 @@ async function showAdminDetail(userName, filter) {
 
     // Add tracked words
     for (const [key, w] of Object.entries(result.words)) {
-      const deEnMastered = (w.deEn?.correct || 0) >= MASTERY_THRESHOLD;
-      const enDeMastered = (w.enDe?.correct || 0) >= MASTERY_THRESHOLD;
+      const deEnC = w.deEn?.correct || 0;
+      const enDeC = w.enDe?.correct || 0;
+      const hasDirectional = deEnC > 0 || enDeC > 0;
+      // Backward compat: if no directional data yet, use overall correct >= 3 as "mastered"
+      const deEnMastered = hasDirectional ? deEnC >= MASTERY_THRESHOLD : w.correct >= MASTERY_THRESHOLD;
+      const enDeMastered = hasDirectional ? enDeC >= MASTERY_THRESHOLD : w.correct >= MASTERY_THRESHOLD;
       const isMastered = deEnMastered && enDeMastered;
       const isStruggle = w.wrong >= 2;
       const isWeak = !isMastered && !isStruggle && (w.correct + w.wrong) > 0;
@@ -2521,12 +2525,17 @@ async function showAdminDetail(userName, filter) {
       if (filter !== 'all' && filter !== 'unseen' && filter !== category) continue;
       if (filter === 'unseen') continue; // unseen handled below
 
+      // Show overall correct if no directional data yet
+      const displayDeEn = hasDirectional ? deEnC : w.correct;
+      const displayEnDe = hasDirectional ? enDeC : w.correct;
+
       allWords.push({
         de: w.de, en: w.en,
-        deEnCorrect: w.deEn?.correct || 0, deEnWrong: w.deEn?.wrong || 0,
-        enDeCorrect: w.enDe?.correct || 0, enDeWrong: w.enDe?.wrong || 0,
+        deEnCorrect: displayDeEn, deEnWrong: w.deEn?.wrong || 0,
+        enDeCorrect: displayEnDe, enDeWrong: w.enDe?.wrong || 0,
         wrong: w.wrong, correct: w.correct,
         lastSeen: w.lastSeen,
+        hasDirectional,
         category
       });
     }
@@ -2578,6 +2587,11 @@ async function showAdminDetail(userName, filter) {
 }
 
 function renderAdminDetailTable(words) {
+  if (words.length === 0) {
+    document.getElementById('admin-detail-tbody').innerHTML =
+      `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted)">No words in this category yet. Keep practising!</td></tr>`;
+    return;
+  }
   const catColors = { mastered: '#e6f4ea', struggles: '#fce8e6', weak: '#fef7e0', unseen: '#e8f0fe' };
   const catLabels = { mastered: 'Mastered', struggles: 'Struggle', weak: 'Weak', unseen: 'Unseen' };
 
