@@ -244,8 +244,13 @@
       <button onclick="setQuizMode('struggles')">Struggles</button>
     </div>
 
-    <select id="cat-filters" style="width:100%;padding:10px 14px;font-size:0.95rem;border:2px solid var(--border);border-radius:12px;margin-bottom:16px;background:white;color:var(--text);outline:none;cursor:pointer" onchange="selectCategory(this.value)">
-    </select>
+    <div style="position:relative;margin-bottom:16px" id="cat-dropdown-wrap">
+      <div id="cat-dropdown-btn" onclick="toggleCatDropdown()" style="width:100%;padding:10px 14px;font-size:0.95rem;border:2px solid var(--border);border-radius:12px;background:white;color:var(--text);cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+        <span id="cat-dropdown-label">All Categories (975 words)</span>
+        <span style="font-size:0.7rem">&#9660;</span>
+      </div>
+      <div id="cat-dropdown-list" class="hidden" style="position:absolute;top:100%;left:0;right:0;background:white;border:2px solid var(--border);border-radius:12px;margin-top:4px;max-height:300px;overflow-y:auto;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,0.12);padding:6px 0"></div>
+    </div>
 
     <div class="quiz-direction-wrapper">
       <span class="quiz-direction" id="quiz-direction">German &rarr; English</span>
@@ -1795,21 +1800,63 @@ function getCategories() {
 }
 
 function initCategoryFilters() {
-  const select = document.getElementById('cat-filters');
+  const list = document.getElementById('cat-dropdown-list');
   const cats = getCategories();
-  // Count words per category
   const catCounts = {};
   VOCAB.forEach(w => { catCounts[w.cat] = (catCounts[w.cat] || 0) + 1; });
-  select.innerHTML = `<option value="all">All Categories (${VOCAB.length} words)</option>` +
-    cats.map(c => `<option value="${c}">${c} (${catCounts[c]} words)</option>`).join('');
+  list.innerHTML = `<label style="display:flex;align-items:center;padding:8px 14px;cursor:pointer;font-size:0.9rem;border-bottom:1px solid #f1f3f4" onclick="selectAllCategories()">
+      <input type="checkbox" id="cat-check-all" checked style="margin-right:8px;width:16px;height:16px"> <strong>All Categories (${VOCAB.length})</strong>
+    </label>` +
+    cats.map(c => `<label style="display:flex;align-items:center;padding:6px 14px;cursor:pointer;font-size:0.85rem" onclick="event.stopPropagation()">
+      <input type="checkbox" class="cat-check" value="${c}" onchange="updateCategorySelection()" style="margin-right:8px;width:16px;height:16px"> ${c} (${catCounts[c]})
+    </label>`).join('');
+  updateCatLabel();
 }
 
-function selectCategory(cat) {
-  selectedCategories.clear();
-  if (cat !== 'all') {
-    selectedCategories.add(cat);
+function toggleCatDropdown() {
+  document.getElementById('cat-dropdown-list').classList.toggle('hidden');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('cat-dropdown-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('cat-dropdown-list').classList.add('hidden');
   }
+});
+
+function selectAllCategories() {
+  selectedCategories.clear();
+  document.querySelectorAll('.cat-check').forEach(cb => cb.checked = false);
+  document.getElementById('cat-check-all').checked = true;
+  updateCatLabel();
   nextWord();
+}
+
+function updateCategorySelection() {
+  const checked = [...document.querySelectorAll('.cat-check:checked')].map(cb => cb.value);
+  selectedCategories.clear();
+  checked.forEach(c => selectedCategories.add(c));
+  document.getElementById('cat-check-all').checked = checked.length === 0;
+  if (checked.length === 0) {
+    document.getElementById('cat-check-all').checked = true;
+  }
+  updateCatLabel();
+  nextWord();
+}
+
+function updateCatLabel() {
+  const label = document.getElementById('cat-dropdown-label');
+  if (selectedCategories.size === 0) {
+    label.textContent = `All Categories (${VOCAB.length} words)`;
+  } else if (selectedCategories.size === 1) {
+    const cat = [...selectedCategories][0];
+    const count = VOCAB.filter(w => w.cat === cat).length;
+    label.textContent = `${cat} (${count} words)`;
+  } else {
+    const count = VOCAB.filter(w => selectedCategories.has(w.cat)).length;
+    label.textContent = `${selectedCategories.size} categories (${count} words)`;
+  }
 }
 
 function getFilteredVocab() {
