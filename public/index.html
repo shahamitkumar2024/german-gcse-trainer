@@ -2148,21 +2148,37 @@ function submitAnswer() {
 }
 
 function skipWord() {
-  if (currentWord) {
-    const stat = getWordStat(currentWord);
-    const dirStat = currentDirection === 'de-en' ? stat.deEn : stat.enDe;
-    stat.wrong++;
-    dirStat.wrong++;
-    state.totalWrong++;
-    const daily = getDailyScore();
-    daily.wrong++;
-    sessionWrong++;
-    sessionStreak = 0;
-    stat.lastSeen = new Date().toISOString();
-    saveState();
-    updateSessionScore();
-  }
-  nextWord();
+  if (waitingForNext) { nextWord(); return; }
+  if (!currentWord) { nextWord(); return; }
+
+  const stat = getWordStat(currentWord);
+  const dirStat = currentDirection === 'de-en' ? stat.deEn : stat.enDe;
+  stat.wrong++;
+  dirStat.wrong++;
+  state.totalWrong++;
+  const daily = getDailyScore();
+  daily.wrong++;
+  sessionWrong++;
+  sessionStreak = 0;
+  stat.lastSeen = new Date().toISOString();
+  saveState();
+  updateSessionScore();
+
+  // Show the correct answer
+  const correctAnswer = currentDirection === 'de-en' ? currentWord.en : currentWord.de;
+  const input = document.getElementById('quiz-input');
+  input.value = correctAnswer;
+  input.className = 'quiz-input wrong';
+  input.disabled = true;
+
+  const feedback = document.getElementById('quiz-feedback');
+  feedback.className = 'quiz-feedback feedback-wrong';
+  feedback.textContent = `The answer is: ${correctAnswer}`;
+
+  document.getElementById('btn-submit').textContent = 'Next Word \u2192';
+  document.getElementById('btn-submit').className = 'quiz-btn btn-success';
+  document.getElementById('btn-submit').onclick = nextWord;
+  waitingForNext = true;
 }
 
 function setQuizMode(mode) {
