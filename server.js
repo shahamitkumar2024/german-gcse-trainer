@@ -205,19 +205,19 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
       // Daily history (last 35 days)
       const dailyHistory = [];
       let activeDays = 0;
-      let totalNewMastered = 0;
       for (let i = TOTAL_DAYS - 1; i >= 0; i--) {
         const d = new Date(); d.setDate(d.getDate() - i);
         const dk = d.toISOString().slice(0, 10);
         const ds = (data.dailyScores || {})[dk] || { correct: 0, wrong: 0 };
-        const newMastered = Math.round(ds.correct / 3); // estimate
         if (ds.correct > 0) activeDays++;
-        totalNewMastered += newMastered;
-        dailyHistory.push({ date: dk, correct: ds.correct, wrong: ds.wrong, newMastered });
+        dailyHistory.push({ date: dk, correct: ds.correct, wrong: ds.wrong });
       }
 
-      const avgPerDay = activeDays > 0 ? Math.round(totalNewMastered / activeDays) : 0;
-      const onTrack = avgPerDay >= wordsPerDay;
+      // Avg based on actual mastered words / days studied
+      const startDate = data.startDate ? new Date(data.startDate) : new Date();
+      const daysStudied = Math.max(1, Math.ceil((new Date() - startDate) / (1000*60*60*24)));
+      const deEnAvg = Math.round(deEnStats.mastered / daysStudied * 10) / 10;
+      const enDeAvg = Math.round(enDeStats.mastered / daysStudied * 10) / 10;
 
       // Per-direction run rates
       const deEnNeeded = Math.max(0, TARGET_WORDS - deEnStats.mastered);
@@ -229,15 +229,14 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
         name: row.sync_code,
         lastActive: row.updated_at,
         mastered, struggles, weak, unseen,
-        deEn: { ...deEnStats, wordsPerDay: deEnPerDay, masteryPct: Math.round(deEnStats.mastered / TOTAL_WORDS * 100) },
-        enDe: { ...enDeStats, wordsPerDay: enDePerDay, masteryPct: Math.round(enDeStats.mastered / TOTAL_WORDS * 100) },
+        deEn: { ...deEnStats, wordsPerDay: deEnPerDay, avgPerDay: deEnAvg, masteryPct: Math.round(deEnStats.mastered / TOTAL_WORDS * 100) },
+        enDe: { ...enDeStats, wordsPerDay: enDePerDay, avgPerDay: enDeAvg, masteryPct: Math.round(enDeStats.mastered / TOTAL_WORDS * 100) },
         totalAttempted, accuracy,
         bestStreak: data.bestStreak || 0,
         todayCorrect: todayScore.correct,
         todayWrong: todayScore.wrong,
         wordsPerDay, daysLeft,
         masteryPct: Math.round(mastered / TOTAL_WORDS * 100),
-        avgPerDay, onTrack,
         topStruggles,
         dailyHistory
       };
