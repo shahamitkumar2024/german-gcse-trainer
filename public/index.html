@@ -204,7 +204,7 @@
 <div id="page-quiz" class="container">
   <div class="card" id="daily-target-card" style="background:linear-gradient(135deg,#1a73e8,#6c5ce7);color:white;padding:12px 16px">
     <div style="text-align:center;margin-bottom:10px">
-      <span style="font-size:2rem;font-weight:800" id="target-days-left">35</span>
+      <span style="font-size:2rem;font-weight:800" id="target-days-left">—</span>
       <span style="font-size:0.85rem;opacity:0.9"> days left</span>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -270,7 +270,7 @@
 <!-- PROGRESS PAGE -->
 <div id="page-progress" class="container hidden">
   <div class="countdown">
-    <div class="days-left" id="days-left">35</div>
+    <div class="days-left" id="days-left">—</div>
     <div class="days-label">days to master 98% of words</div>
   </div>
 
@@ -373,7 +373,7 @@
   <!-- Admin Dashboard (hidden until login) -->
   <div id="admin-dashboard" class="hidden">
     <div class="countdown" id="admin-countdown">
-      <div class="days-left" id="admin-days-left">35</div>
+      <div class="days-left" id="admin-days-left">—</div>
       <div class="days-label">days to master 98% of words</div>
     </div>
 
@@ -1478,11 +1478,11 @@ const VOCAB = [
 // ============================================================
 // APP STATE
 // ============================================================
-const EXAM_DATE = new Date('2026-05-07'); // Approximate GCSE date
+const EXAM_DATE = new Date('2026-05-02'); // GCSE exam date
 const MASTERY_THRESHOLD = 3; // correct 3 times = mastered
 const TARGET_MASTERY_PCT = 0.98; // 98% target
 const TARGET_WORDS = Math.ceil(VOCAB.length * TARGET_MASTERY_PCT);
-const TOTAL_STUDY_DAYS = 35;
+const TOTAL_STUDY_DAYS = 34;
 const API_BASE = window.location.origin;
 
 // Input sanitization
@@ -1612,11 +1612,13 @@ function mergeStates(local, cloud) {
   // Merge daily scores - take highest
   const allDays = new Set([...Object.keys(local.dailyScores || {}), ...Object.keys(cloud.dailyScores || {})]);
   for (const day of allDays) {
-    const l = (local.dailyScores || {})[day] || {correct:0, wrong:0};
-    const c = (cloud.dailyScores || {})[day] || {correct:0, wrong:0};
+    const l = (local.dailyScores || {})[day] || {correct:0, wrong:0, deEnMastered:0, enDeMastered:0};
+    const c = (cloud.dailyScores || {})[day] || {correct:0, wrong:0, deEnMastered:0, enDeMastered:0};
     merged.dailyScores[day] = {
       correct: Math.max(l.correct, c.correct),
-      wrong: Math.max(l.wrong, c.wrong)
+      wrong: Math.max(l.wrong, c.wrong),
+      deEnMastered: Math.max(l.deEnMastered || 0, c.deEnMastered || 0),
+      enDeMastered: Math.max(l.enDeMastered || 0, c.enDeMastered || 0)
     };
   }
 
@@ -1788,8 +1790,12 @@ function getTodayKey() {
 
 function getDailyScore() {
   const key = getTodayKey();
-  if (!state.dailyScores[key]) state.dailyScores[key] = {correct:0, wrong:0};
-  return state.dailyScores[key];
+  if (!state.dailyScores[key]) state.dailyScores[key] = {correct:0, wrong:0, deEnMastered:0, enDeMastered:0};
+  const ds = state.dailyScores[key];
+  // Ensure mastery fields exist for older data
+  if (ds.deEnMastered === undefined) ds.deEnMastered = 0;
+  if (ds.enDeMastered === undefined) ds.enDeMastered = 0;
+  return ds;
 }
 
 // ============================================================
@@ -1887,29 +1893,42 @@ function weightedPick(items) {
 const recentlyShown = []; // last N word keys
 const RECENT_LIMIT = 15;  // don't repeat within last 15 words
 
+// Cap how many times a struggle word can appear per session
+const sessionWordCount = {};  // key -> count
+const STRUGGLE_SESSION_CAP = 4; // max 4 times per session per struggle word
+
 function isRecentlyShown(w) {
   return recentlyShown.includes(getWordKey(w));
 }
 
 function markShown(w) {
-  recentlyShown.push(getWordKey(w));
+  const key = getWordKey(w);
+  recentlyShown.push(key);
   if (recentlyShown.length > RECENT_LIMIT) recentlyShown.shift();
+  sessionWordCount[key] = (sessionWordCount[key] || 0) + 1;
 }
 
-// Cooldown: skip words answered correctly in last N minutes
+function isSessionCapped(w) {
+  return (sessionWordCount[getWordKey(w)] || 0) >= STRUGGLE_SESSION_CAP;
+}
+
+// Cooldown: skip words based on last answer result
 const CORRECT_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
+const WRONG_COOLDOWN_MS = 5 * 60 * 1000;    // 5 minutes after wrong answer
 
 function isOnCooldown(w) {
   const s = getWordStat(w);
   if (!s.lastSeen) return false;
   const timeSince = Date.now() - new Date(s.lastSeen).getTime();
-  // Only cooldown if last answer was correct (correct > wrong means likely correct last)
-  if (s.correct > 0 && timeSince < CORRECT_COOLDOWN_MS) {
+  if (s.lastCorrect === true) {
     // Longer cooldown for mastered words, shorter for weak
     const cooldown = isWordMastered(w)
       ? CORRECT_COOLDOWN_MS * 2  // 1 hour for mastered
       : CORRECT_COOLDOWN_MS;      // 30 min for others
     return timeSince < cooldown;
+  } else if (s.lastCorrect === false) {
+    // Short cooldown after wrong answer to prevent hammering
+    return timeSince < WRONG_COOLDOWN_MS;
   }
   return false;
 }
@@ -1965,7 +1984,7 @@ function nextWord() {
     }
   }
 
-  // Smart selection: 50% struggles, 30% unseen, 20% review
+  // Smart selection: 30% struggles, 40% unseen, 30% weak/review
   // Bucket words into categories, respecting cooldowns
   const struggles = []; // wrong 2+ times
   const unseen = [];    // never attempted
@@ -1982,7 +2001,8 @@ function nextWord() {
   }
 
   // Apply cooldown + recent filters to each bucket
-  const coolStruggles = filterCooldownAndRecent(struggles);
+  // Struggles also get session cap filter
+  const coolStruggles = filterCooldownAndRecent(struggles).filter(w => !isSessionCapped(w));
   const coolWeak = filterCooldownAndRecent(weak);
   const coolMastered = filterCooldownAndRecent(mastered);
   // Unseen words don't need cooldown, just recent filter
@@ -1990,17 +2010,18 @@ function nextWord() {
   const availUnseen = coolUnseen.length > 0 ? coolUnseen : unseen;
 
   // Pick a bucket based on weighted probability
+  // 30% struggles, 40% unseen, 30% weak/review
   let chosen;
   const roll = Math.random();
-  if (coolStruggles.length > 0 && roll < 0.50) {
-    // 50% chance: pick a struggle word (weighted by wrong count)
+  if (coolStruggles.length > 0 && roll < 0.30) {
+    // 30% chance: pick a struggle word (weighted by wrong count)
     const weighted = coolStruggles.map(w => ({ word: w, weight: getWordStat(w).wrong }));
     chosen = weightedPick(weighted);
-  } else if (availUnseen.length > 0 && roll < 0.80) {
-    // 30% chance: pick an unseen word (random)
+  } else if (availUnseen.length > 0 && roll < 0.70) {
+    // 40% chance: pick an unseen word (random)
     chosen = availUnseen[Math.floor(Math.random() * availUnseen.length)];
   } else if (coolWeak.length > 0) {
-    // Pick a weak word for review
+    // 30% chance: pick a weak word for review
     chosen = coolWeak[Math.floor(Math.random() * coolWeak.length)];
   } else if (availUnseen.length > 0) {
     chosen = availUnseen[Math.floor(Math.random() * availUnseen.length)];
@@ -2112,6 +2133,7 @@ function submitAnswer() {
   const dirStat = currentDirection === 'de-en' ? stat.deEn : stat.enDe;
 
   if (isCorrect) {
+    const wasMasteredInDir = dirStat.correct >= MASTERY_THRESHOLD;
     stat.correct++;
     dirStat.correct++;
     state.totalCorrect++;
@@ -2120,9 +2142,16 @@ function submitAnswer() {
     sessionStreak++;
     if (sessionStreak > state.bestStreak) state.bestStreak = sessionStreak;
 
+    // Track daily mastery: did this correct answer push direction over threshold?
+    if (!wasMasteredInDir && dirStat.correct >= MASTERY_THRESHOLD) {
+      if (currentDirection === 'de-en') daily.deEnMastered++;
+      else daily.enDeMastered++;
+    }
+
     input.className = 'quiz-input correct';
     feedback.className = 'quiz-feedback feedback-correct';
     feedback.textContent = 'Correct! \u2714';
+    stat.lastCorrect = true;
   } else {
     stat.wrong++;
     dirStat.wrong++;
@@ -2134,6 +2163,7 @@ function submitAnswer() {
     input.className = 'quiz-input wrong';
     feedback.className = 'quiz-feedback feedback-wrong';
     feedback.textContent = `Wrong. The answer is: ${correctAnswer}`;
+    stat.lastCorrect = false;
   }
 
   stat.lastSeen = new Date().toISOString();
@@ -2160,6 +2190,7 @@ function skipWord() {
   daily.wrong++;
   sessionWrong++;
   sessionStreak = 0;
+  stat.lastCorrect = false;
   stat.lastSeen = new Date().toISOString();
   saveState();
   updateSessionScore();
@@ -2209,18 +2240,18 @@ function updateDailyTarget() {
   if (!state) return;
   const now = new Date();
   const daysLeft = Math.max(0, Math.ceil((EXAM_DATE - now) / (1000 * 60 * 60 * 24)));
-  const effectiveDays = Math.min(daysLeft, TOTAL_STUDY_DAYS);
 
   const ds = getDirectionStats();
 
   const deEnNeeded = Math.max(0, TARGET_WORDS - ds.deEn.mastered);
   const enDeNeeded = Math.max(0, TARGET_WORDS - ds.enDe.mastered);
-  const deEnRate = effectiveDays > 0 ? Math.ceil(deEnNeeded / effectiveDays) : deEnNeeded;
-  const enDeRate = effectiveDays > 0 ? Math.ceil(enDeNeeded / effectiveDays) : enDeNeeded;
+  // Use actual days left (not capped) so the rate updates daily
+  const deEnRate = daysLeft > 0 ? Math.ceil(deEnNeeded / daysLeft) : deEnNeeded;
+  const enDeRate = daysLeft > 0 ? Math.ceil(enDeNeeded / daysLeft) : enDeNeeded;
   const deEnPct = Math.min(100, Math.round(ds.deEn.mastered / TARGET_WORDS * 100));
   const enDePct = Math.min(100, Math.round(ds.enDe.mastered / TARGET_WORDS * 100));
 
-  document.getElementById('target-days-left').textContent = effectiveDays;
+  document.getElementById('target-days-left').textContent = daysLeft;
   document.getElementById('target-deen-mastered').textContent = ds.deEn.mastered;
   document.getElementById('target-ende-mastered').textContent = ds.enDe.mastered;
   document.getElementById('target-needed').textContent = TARGET_WORDS;
@@ -2250,7 +2281,7 @@ function updateDailyTarget() {
 function updateProgress() {
   // Days left
   const now = new Date();
-  const diff = Math.min(TOTAL_STUDY_DAYS, Math.max(0, Math.ceil((EXAM_DATE - now) / (1000*60*60*24))));
+  const diff = Math.max(0, Math.ceil((EXAM_DATE - now) / (1000*60*60*24)));
   document.getElementById('days-left').textContent = diff;
 
   // Stats
@@ -2322,9 +2353,9 @@ function updateProgress() {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const key = d.toISOString().slice(0,10);
-    const score = state.dailyScores[key] || {correct:0, wrong:0};
+    const score = state.dailyScores[key] || {correct:0, wrong:0, deEnMastered:0, enDeMastered:0};
     const dayNum = d.getDate();
-    dailyData.push({ key, dayNum, correct: score.correct, wrong: score.wrong });
+    dailyData.push({ key, dayNum, correct: score.correct, wrong: score.wrong, deEnMastered: score.deEnMastered || 0, enDeMastered: score.enDeMastered || 0 });
   }
 
   document.getElementById('run-rate-info').innerHTML = `
@@ -2346,30 +2377,29 @@ function updateProgress() {
     </div>
   `;
 
-  // Bar chart
-  const maxBar = Math.max(1, ...dailyData.map(d => d.correct + d.wrong));
+  // Bar chart - words mastered per direction
+  const maxMasteredDay = Math.max(1, ...dailyData.map(d => d.deEnMastered + d.enDeMastered));
   const chartContainer = document.getElementById('daily-chart');
   chartContainer.innerHTML = `
     <div style="display:flex;gap:2px;align-items:flex-end;height:100px;padding-bottom:4px">
       ${dailyData.map(d => {
-        const total = d.correct + d.wrong;
-        const h = Math.max(2, Math.round(total / maxBar * 80));
-        const correctH = total > 0 ? Math.round(d.correct / total * h) : 0;
-        const wrongH = h - correctH;
+        const total = d.deEnMastered + d.enDeMastered;
+        const h = total > 0 ? Math.max(4, Math.round(total / maxMasteredDay * 80)) : 2;
+        const deEnH = total > 0 ? Math.max(1, Math.round(d.deEnMastered / total * h)) : 1;
+        const enDeH = total > 0 ? h - deEnH : 1;
         const isToday = d.key === getTodayKey();
         const border = isToday ? 'border:2px solid var(--primary);border-radius:4px;padding:1px;' : '';
         return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;min-width:18px;${border}">
           <div style="font-size:0.55rem;color:var(--muted);margin-bottom:2px">${total > 0 ? total : ''}</div>
-          <div style="width:100%;height:${wrongH}px;background:var(--danger);border-radius:2px 2px 0 0;min-width:8px;max-width:24px;margin:0 auto"></div>
-          <div style="width:100%;height:${correctH}px;background:var(--success);border-radius:0 0 2px 2px;min-width:8px;max-width:24px;margin:0 auto"></div>
+          <div style="width:100%;height:${total > 0 ? enDeH : 0}px;background:#9c27b0;border-radius:2px 2px 0 0;min-width:8px;max-width:24px;margin:0 auto"></div>
+          <div style="width:100%;height:${total > 0 ? deEnH : 0}px;background:#1a73e8;border-radius:0 0 2px 2px;min-width:8px;max-width:24px;margin:0 auto"></div>
           <div style="font-size:0.55rem;color:var(--muted);margin-top:2px">${d.dayNum}</div>
         </div>`;
       }).join('')}
     </div>
     <div style="display:flex;justify-content:center;gap:16px;margin-top:6px;font-size:0.7rem">
-      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--success);border-radius:2px;display:inline-block"></span> Correct</span>
-      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--danger);border-radius:2px;display:inline-block"></span> Wrong</span>
-      <span style="display:flex;align-items:center;gap:4px">Top number = new words mastered</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#1a73e8;border-radius:2px;display:inline-block"></span> DE→EN</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#9c27b0;border-radius:2px;display:inline-block"></span> EN→DE</span>
     </div>
   `;
 
@@ -2631,21 +2661,23 @@ async function loadAdminDashboard() {
       const statusDot = hoursSince < 1 ? '#34a853' : hoursSince < 24 ? '#fbbc04' : '#ea4335';
       const statusText = hoursSince < 1 ? 'Active now' : hoursSince < 24 ? 'Today' : Math.floor(hoursSince/24) + 'd ago';
 
-      // Run rate + daily chart
-      const maxDay = Math.max(1, ...u.dailyHistory.map(d => d.correct + d.wrong));
+      // Run rate + daily chart showing mastered words per direction
+      const maxMastered = Math.max(1, ...u.dailyHistory.map(d => (d.deEnMastered || 0) + (d.enDeMastered || 0)));
       const todayKey = new Date().toISOString().slice(0,10);
       const dailyChart = u.dailyHistory.map(d => {
-        const total = d.correct + d.wrong;
-        const h = Math.max(2, Math.round(total / maxDay * 60));
-        const correctH = total > 0 ? Math.round(d.correct / total * h) : 0;
-        const wrongH = h - correctH;
+        const deEn = d.deEnMastered || 0;
+        const enDe = d.enDeMastered || 0;
+        const total = deEn + enDe;
+        const h = total > 0 ? Math.max(4, Math.round(total / maxMastered * 60)) : 2;
+        const deEnH = total > 0 ? Math.max(1, Math.round(deEn / total * h)) : 1;
+        const enDeH = total > 0 ? h - deEnH : 1;
         const dayNum = d.date.slice(8);
         const isToday = d.date === todayKey;
         const border = isToday ? 'border:2px solid var(--primary);border-radius:3px;padding:1px;' : '';
         return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;min-width:10px;${border}">
-          <div style="font-size:0.45rem;color:var(--muted)">${(d.correct + d.wrong) > 0 ? (d.correct + d.wrong) : ''}</div>
-          <div style="width:100%;height:${wrongH}px;background:var(--danger);border-radius:1px 1px 0 0;max-width:16px;margin:0 auto"></div>
-          <div style="width:100%;height:${correctH}px;background:var(--success);border-radius:0 0 1px 1px;max-width:16px;margin:0 auto"></div>
+          <div style="font-size:0.45rem;color:var(--muted)">${total > 0 ? total : ''}</div>
+          <div style="width:100%;height:${total > 0 ? enDeH : 0}px;background:#9c27b0;border-radius:1px 1px 0 0;max-width:16px;margin:0 auto"></div>
+          <div style="width:100%;height:${total > 0 ? deEnH : 0}px;background:#1a73e8;border-radius:0 0 1px 1px;max-width:16px;margin:0 auto"></div>
           <div style="font-size:0.45rem;color:var(--muted)">${parseInt(dayNum) % 5 === 0 ? dayNum : ''}</div>
         </div>`;
       }).join('');
@@ -2744,11 +2776,11 @@ async function loadAdminDashboard() {
               <span style="padding:0 4px;border-radius:6px;font-size:0.6rem;font-weight:600;${u.enDe.avgPerDay >= u.enDe.wordsPerDay ? 'background:#e6f4ea;color:var(--success)' : 'background:#fce8e6;color:var(--danger)'}">${u.enDe.avgPerDay >= u.enDe.wordsPerDay ? 'OK' : 'BEHIND'}</span>
             </div>
           </div>
-          <div style="font-size:0.75rem;color:var(--muted);margin-bottom:4px">35-Day Answers (numbers = total answers)</div>
+          <div style="font-size:0.75rem;color:var(--muted);margin-bottom:4px">Daily Words Mastered (numbers = total mastered that day)</div>
           <div style="display:flex;gap:1px;align-items:flex-end;height:70px;overflow-x:auto">${dailyChart}</div>
           <div style="display:flex;justify-content:center;gap:12px;margin-top:4px;font-size:0.65rem">
-            <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;background:var(--success);border-radius:2px;display:inline-block"></span> Correct</span>
-            <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;background:var(--danger);border-radius:2px;display:inline-block"></span> Wrong</span>
+            <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;background:#1a73e8;border-radius:2px;display:inline-block"></span> DE→EN</span>
+            <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;background:#9c27b0;border-radius:2px;display:inline-block"></span> EN→DE</span>
           </div>
         </div>
 

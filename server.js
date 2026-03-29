@@ -18,8 +18,8 @@ const pool = new Pool({
 const TOTAL_WORDS = 975;
 const TARGET_MASTERY = 0.98; // 98%
 const TARGET_WORDS = Math.ceil(TOTAL_WORDS * TARGET_MASTERY); // 956 words
-const EXAM_DATE = new Date('2026-05-07');
-const TOTAL_DAYS = 35;
+const EXAM_DATE = new Date('2026-05-02');
+const TOTAL_DAYS = 34;
 
 // ============================================================
 // Input sanitization
@@ -191,7 +191,7 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
       const accuracy = totalAttempted > 0 ? Math.round(totalCorrect / totalAttempted * 100) : 0;
       const today = new Date().toISOString().slice(0, 10);
       const todayScore = (data.dailyScores || {})[today] || { correct: 0, wrong: 0 };
-      const daysLeft = Math.min(TOTAL_DAYS, Math.max(0, Math.ceil((EXAM_DATE - new Date()) / (1000 * 60 * 60 * 24))));
+      const daysLeft = Math.max(0, Math.ceil((EXAM_DATE - new Date()) / (1000 * 60 * 60 * 24)));
       const wordsNeeded = Math.max(0, TARGET_WORDS - mastered);
       const wordsPerDay = daysLeft > 0 ? Math.ceil(wordsNeeded / daysLeft) : wordsNeeded;
 
@@ -208,9 +208,9 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
       for (let i = TOTAL_DAYS - 1; i >= 0; i--) {
         const d = new Date(); d.setDate(d.getDate() - i);
         const dk = d.toISOString().slice(0, 10);
-        const ds = (data.dailyScores || {})[dk] || { correct: 0, wrong: 0 };
+        const ds = (data.dailyScores || {})[dk] || { correct: 0, wrong: 0, deEnMastered: 0, enDeMastered: 0 };
         if (ds.correct > 0) activeDays++;
-        dailyHistory.push({ date: dk, correct: ds.correct, wrong: ds.wrong });
+        dailyHistory.push({ date: dk, correct: ds.correct, wrong: ds.wrong, deEnMastered: ds.deEnMastered || 0, enDeMastered: ds.enDeMastered || 0 });
       }
 
       // Avg based on actual mastered words / days studied
@@ -241,7 +241,7 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
         dailyHistory
       };
     });
-    res.json({ users, totalWords: TOTAL_WORDS, targetWords: TARGET_WORDS, daysLeft: Math.min(TOTAL_DAYS, Math.max(0, Math.ceil((EXAM_DATE - new Date()) / (1000 * 60 * 60 * 24)))) });
+    res.json({ users, totalWords: TOTAL_WORDS, targetWords: TARGET_WORDS, daysLeft: Math.max(0, Math.ceil((EXAM_DATE - new Date()) / (1000 * 60 * 60 * 24))) });
   } catch (err) {
     console.error('Admin users error:', err);
     res.status(500).json({ error: 'Failed to fetch users' });
