@@ -1749,7 +1749,7 @@ function getWordStat(word) {
 // A word is mastered only when correct 3+ times in BOTH directions
 function isWordMastered(word) {
   const s = getWordStat(word);
-  const hasDirectional = s.deEn.correct > 0 || s.enDe.correct > 0;
+  const hasDirectional = s.deEn.correct > 0 || s.enDe.correct > 0 || s.deEn.wrong > 0 || s.enDe.wrong > 0;
   if (hasDirectional) {
     return s.deEn.correct >= MASTERY_THRESHOLD && s.enDe.correct >= MASTERY_THRESHOLD;
   }
@@ -1763,12 +1763,12 @@ function getDirectionStats() {
     const s = getWordStat(w);
     const hasDir = s.deEn.correct > 0 || s.enDe.correct > 0 || s.deEn.wrong > 0 || s.enDe.wrong > 0;
     if (hasDir) {
-      if (s.deEn.wrong >= 2) deEn.struggles++;
-      else if (s.deEn.correct >= MASTERY_THRESHOLD) deEn.mastered++;
+      if (s.deEn.correct >= MASTERY_THRESHOLD) deEn.mastered++;
+      else if (s.deEn.wrong >= 2) deEn.struggles++;
       else if (s.deEn.correct + s.deEn.wrong > 0) deEn.weak++;
       else deEn.unseen++;
-      if (s.enDe.wrong >= 2) enDe.struggles++;
-      else if (s.enDe.correct >= MASTERY_THRESHOLD) enDe.mastered++;
+      if (s.enDe.correct >= MASTERY_THRESHOLD) enDe.mastered++;
+      else if (s.enDe.wrong >= 2) enDe.struggles++;
       else if (s.enDe.correct + s.enDe.wrong > 0) enDe.weak++;
       else enDe.unseen++;
     } else if (s.correct + s.wrong > 0) {
@@ -2841,8 +2841,8 @@ async function showAdminDetail(userName, filter, direction) {
       if (direction && hasDirectional) {
         const dirC = direction === 'deEn' ? deEnC : enDeC;
         const dirW = direction === 'deEn' ? deEnW : enDeW;
-        if (dirW >= 2) category = 'struggles';
-        else if (dirC >= MASTERY_THRESHOLD) category = 'mastered';
+        if (dirC >= MASTERY_THRESHOLD) category = 'mastered';
+        else if (dirW >= 2) category = 'struggles';
         else if (dirC + dirW > 0) category = 'weak';
         else category = 'unseen';
       } else {
@@ -2851,7 +2851,7 @@ async function showAdminDetail(userName, filter, direction) {
         const enDeMast = hasDirectional ? enDeC >= MASTERY_THRESHOLD : w.correct >= MASTERY_THRESHOLD;
         const isMastered = deEnMast && enDeMast;
         const isStruggle = w.wrong >= 2;
-        category = isStruggle ? 'struggles' : isMastered ? 'mastered' : 'weak';
+        category = isMastered ? 'mastered' : isStruggle ? 'struggles' : 'weak';
       }
 
       if (filter !== 'all' && filter !== 'unseen' && filter !== category) continue;

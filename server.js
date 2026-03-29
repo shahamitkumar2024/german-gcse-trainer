@@ -155,15 +155,15 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
         const enDeW = s.enDe?.wrong || 0;
         const hasDirectional = deEnC > 0 || enDeC > 0 || deEnW > 0 || enDeW > 0;
 
-        // Per-direction stats
+        // Per-direction stats — check mastered first (matches frontend logic)
         if (hasDirectional) {
-          if (deEnW >= 2) deEnStats.struggles++;
-          else if (deEnC >= 3) deEnStats.mastered++;
+          if (deEnC >= 3) deEnStats.mastered++;
+          else if (deEnW >= 2) deEnStats.struggles++;
           else if (deEnC + deEnW > 0) deEnStats.weak++;
           else deEnStats.unseen++;
 
-          if (enDeW >= 2) enDeStats.struggles++;
-          else if (enDeC >= 3) enDeStats.mastered++;
+          if (enDeC >= 3) enDeStats.mastered++;
+          else if (enDeW >= 2) enDeStats.struggles++;
           else if (enDeC + enDeW > 0) enDeStats.weak++;
           else enDeStats.unseen++;
         } else {
