@@ -338,7 +338,11 @@ async function sendDailyReport() {
 
       for (const key of Object.keys(wordStats)) {
         const s = wordStats[key];
-        if (s.correct >= 3) mastered++;
+        const deEnC = s.deEn?.correct || 0;
+        const enDeC = s.enDe?.correct || 0;
+        const hasDirectional = deEnC > 0 || enDeC > 0 || (s.deEn?.wrong || 0) > 0 || (s.enDe?.wrong || 0) > 0;
+        const isMastered = hasDirectional ? (deEnC >= 3 && enDeC >= 3) : (s.correct >= 3);
+        if (isMastered) mastered++;
         else if (s.wrong >= 2) struggles++;
         else weak++;
       }
