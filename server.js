@@ -176,10 +176,10 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
           else { deEnStats.unseen++; enDeStats.unseen++; }
         }
 
-        // Combined stats
+        // Combined stats — check mastered first (matches frontend logic)
         const isMastered = hasDirectional ? (deEnC >= 3 && enDeC >= 3) : (s.correct >= 3);
-        if (s.wrong >= 2) struggles++;
-        else if (isMastered) mastered++;
+        if (isMastered) mastered++;
+        else if (s.wrong >= 2) struggles++;
         else if ((s.correct + s.wrong) > 0) weak++;
       }
       const unseen = TOTAL_WORDS - totalTracked;
