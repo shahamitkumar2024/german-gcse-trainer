@@ -1492,7 +1492,9 @@ function sanitizeInput(str) {
 }
 
 let state = null;
-let syncCode = localStorage.getItem('german-gcse-sync-code') || '';
+// Check for ?login= URL parameter (used by admin "View as" links)
+const urlLogin = new URLSearchParams(window.location.search).get('login');
+let syncCode = urlLogin || localStorage.getItem('german-gcse-sync-code') || '';
 let sessionCorrect = 0, sessionWrong = 0, sessionStreak = 0;
 let currentWord = null, currentDirection = 'de-en';
 let quizMode = 'mixed';
@@ -1630,9 +1632,15 @@ function mergeStates(local, cloud) {
 // ============================================================
 async function checkLogin() {
   if (syncCode) {
+    // If login came from URL param, use cloud-only data (don't merge with stale localStorage)
+    if (urlLogin) {
+      localStorage.setItem('german-gcse-sync-code', syncCode);
+      state = defaultState();
+    } else {
+      state = loadState();
+    }
     document.getElementById('login-modal').style.display = 'none';
     document.getElementById('user-badge').textContent = syncCode;
-    state = loadState();
     await loadFromCloud(); // wait for cloud data before rendering
     initApp();
   } else {
